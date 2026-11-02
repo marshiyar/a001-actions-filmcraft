@@ -1,0 +1,522 @@
+use super::HexColor;
+use super::label::Label;
+use super::sequence::bounded_time_range;
+use super::{
+    ClipId, Deserialize, EffectInstance, EssentialSound, GraphicMeta, ItemId, MarkerId, MixerStrip, MulticamSel, Param, ParamValue, Serialize, Tick, TimeRange,
+    TrackId, TransitionId, graphic, mask,
+};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MarkerKind {
+    #[default]
+    Comment,
+    Chapter,
+    Segmentation,
+    WebLink,
+    /// Markers ▸ Add Flash Cue Marker… (a cue point for interactive / Flash-style playback; kept
+    /// for interchange). Schema v11.
+    FlashCue,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Marker {
+    /// Optional web address, separate from notes and retained when changing marker kind.
+    /// Opening is explicit and must pass `marker_web_url`, including for imported projects.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub url: String,
+    /// Optional user attribution. Empty in older projects; never inferred from the OS account.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub author: String,
+    /// Exact sRGB marker color. None retains the existing preset and its display mapping.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_color: Option<HexColor>,
+    pub id: MarkerId,
+    pub start: Tick,
+    pub duration: Tick,
+    pub name: String,
+    pub comment: String,
+    pub kind: MarkerKind,
+    pub color: Label,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TrackKind {
+    #[default]
+    Video,
+    Audio,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AudioChannels {
+    Mono,
+    #[default]
+    Stereo,
+    Surround51,
+    Adaptive,
+}
+
+/// A clip instance on a track.
+fn is_zero_stream(stream: &usize) -> bool {
+    *stream == 0
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TrackItem {
+    pub id: ClipId,
+    pub item: ItemId,
+    pub name: String,
+    pub label: Label,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_label_color: Option<HexColor>,
+    /// Timeline position (sequence ticks).
+    pub start: Tick,
+    /// Duration on the timeline.
+    pub duration: Tick,
+    /// Media time of the first frame shown.
+    pub source_in: Tick,
+    /// Playback speed (1.0 = 100%). Negative = reverse.
+    pub speed: f64,
+    #[serde(default)]
+    pub reverse: bool,
+    pub enabled: bool,
+    /// Linked partner items (video ↔ audio of the same source).
+    #[serde(default)]
+    pub link: Option<u64>,
+    #[serde(default)]
+    pub group: Option<u64>,
+    pub effects: Vec<EffectInstance>,
+    #[serde(default)]
+    pub markers: Vec<Marker>,
+    /// Clip gain in dB (Audio Gain dialog), separate from the Volume effect.
+    #[serde(default)]
+    pub gain_db: f64,
+    /// Frame hold: media time frozen (Frame Hold Options).
+    #[serde(default)]
+    pub frame_hold: Option<Tick>,
+    /// Scale to frame size (Set to Frame Size / Scale to Frame Size).
+    #[serde(default)]
+    pub scale_to_frame: bool,
+    /// Essential Sound audio type and settings (audio clips).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub essential: Option<EssentialSound>,
+    /// Multi-camera clip (a nested multi-camera source sequence): enabled flag and angle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multicam: Option<MulticamSel>,
+    /// Video Options ▸ Time Interpolation: how frames are made when the clip's speed is changed.
+    #[serde(default, skip_serializing_if = "TimeInterpolation::is_default")]
+    pub time_interpolation: TimeInterpolation,
+    /// Frame Hold Options ▸ Hold Filters: effects are evaluated at the held frame's time instead
+    /// of animating through the hold.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hold_filters: bool,
+    /// Video Options ▸ Field Options… (stored; FilmCraft renders progressive frames).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field_options: Option<FieldOptions>,
+    /// Audio clips: the source channels this clip plays (0-based; one = mono on both sides, two =
+    /// left/right). Empty = the first two channels (mono sources on both sides).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_channels: Vec<u16>,
+    /// Audio stream within the media container (0 = the primary stream).
+    #[serde(default, skip_serializing_if = "is_zero_stream")]
+    pub audio_stream: usize,
+    /// Graphic clips: roll / crawl, responsive time and the template the graphic came from
+    /// ([`GraphicMeta`]). Schema v12.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graphic: Option<Box<GraphicMeta>>,
+}
+
+/// Time interpolation for speed-changed clips (Clip ▸ Video Options ▸ Time Interpolation).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TimeInterpolation {
+    /// Show the nearest earlier source frame (repeats or drops frames).
+    #[default]
+    FrameSampling,
+    /// Cross-fade the two source frames around the exact media time.
+    FrameBlending,
+    /// Motion-compensated in-between frames. Rendered as frame blending for now.
+    OpticalFlow,
+}
+
+impl TimeInterpolation {
+    pub const ALL: [TimeInterpolation; 3] = [TimeInterpolation::FrameSampling, TimeInterpolation::FrameBlending, TimeInterpolation::OpticalFlow];
+    pub fn is_default(&self) -> bool {
+        *self == TimeInterpolation::FrameSampling
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            TimeInterpolation::FrameSampling => "frameSampling",
+            TimeInterpolation::FrameBlending => "frameBlending",
+            TimeInterpolation::OpticalFlow => "opticalFlow",
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            TimeInterpolation::FrameSampling => "Frame Sampling",
+            TimeInterpolation::FrameBlending => "Frame Blending",
+            TimeInterpolation::OpticalFlow => "Optical Flow",
+        }
+    }
+    pub fn from_name(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|t| t.name().eq_ignore_ascii_case(s) || t.label().eq_ignore_ascii_case(s))
+    }
+}
+
+/// Field Options… (stored with the clip).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FieldOptions {
+    pub reverse_field_dominance: bool,
+    pub processing: FieldProcessing,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FieldProcessing {
+    #[default]
+    None,
+    AlwaysDeinterlace,
+    FlickerRemoval,
+}
+
+impl TrackItem {
+    pub fn end(&self) -> Tick {
+        self.start + self.duration
+    }
+    pub fn range(&self) -> TimeRange {
+        TimeRange::new(self.start, self.duration)
+    }
+    /// Media time displayed at timeline time `t` (ignores time remapping keyframes).
+    pub fn source_time_at(&self, t: Tick) -> Tick {
+        if let Some(h) = self.frame_hold {
+            return h;
+        }
+        self.moving_source_time_at(t)
+    }
+    /// Media time at which effects and intrinsic attributes are evaluated at timeline time `t`: a
+    /// frame hold freezes them only with Hold Filters on; otherwise they animate through the hold.
+    pub fn effect_time_at(&self, t: Tick) -> Tick {
+        match self.frame_hold {
+            Some(h) if self.hold_filters => h,
+            Some(_) => self.moving_source_time_at(t),
+            None => self.source_time_at(t),
+        }
+    }
+    /// Media time at timeline time `t` ignoring any frame hold.
+    pub fn moving_source_time_at(&self, t: Tick) -> Tick {
+        let rel = t - self.start;
+        let scaled = self.media_span(Tick::ZERO, rel);
+        if self.reverse { self.source_in + self.media_span(Tick::ZERO, self.duration) - scaled - Tick(1) } else { self.source_in + scaled }
+    }
+    /// Media time consumed by the item (the source out point).
+    pub fn source_out(&self) -> Tick {
+        self.source_in + self.media_span(Tick::ZERO, self.duration)
+    }
+
+    /// The clip's Time Remapping speed curve (percent), when the clip carries an animated one.
+    pub fn time_remap_speed(&self) -> Option<&Param> {
+        let p = self.effect("time_remap")?.param("speed")?;
+        p.is_animated().then_some(p)
+    }
+
+    /// Whether this effect parameter's keyframes are stored in clip-relative *timeline* time
+    /// instead of media time: Time Remapping's speed. Media time is what remapping defines, so
+    /// keying the curve on it would be circular (every other effect keys on media time, which
+    /// keeps its animation glued to the content across trims and splits).
+    pub fn timeline_keyframed(effect: &str, param: &str) -> bool {
+        effect == "time_remap" && param == "speed"
+    }
+
+    /// Effective playback rate (media ticks per timeline tick) at clip-relative timeline time
+    /// `rel`: the Time Remapping speed curve when animated, else the constant clip speed.
+    pub fn remap_speed_at(&self, rel: Tick) -> f64 {
+        match self.time_remap_speed() {
+            Some(p) => (p.f64_at(rel) / 100.0).abs(),
+            None => self.speed.abs(),
+        }
+    }
+
+    /// The first timeline time at which the clip shows media time `src` (None when it never does):
+    /// the inverse of [`TrackItem::source_time_at`]. A speed curve is monotonic through the clip,
+    /// so its timeline time is bisected out of the mapping.
+    pub fn timeline_time_of_media(&self, src: Tick) -> Option<Tick> {
+        if self.frame_hold.is_some() {
+            return (self.source_time_at(self.start) == src).then_some(self.start);
+        }
+        if self.time_remap_speed().is_none() {
+            let k = self.speed.abs();
+            if !(k.is_finite() && k > 0.0) {
+                return None;
+            }
+            let total = self.media_span(Tick::ZERO, self.duration);
+            let rel_src = if self.reverse { self.source_in + total - Tick(1) - src } else { src - self.source_in };
+            if rel_src < Tick::ZERO || rel_src >= total {
+                return None;
+            }
+            let t = self.start + Tick((rel_src.0 as f64 / k).floor() as i64);
+            return (t < self.end()).then_some(t);
+        }
+        // the shown media time moves monotonically through the clip, so the timeline time for
+        // `src` is found by bisecting the mapping
+        let (a, b) = (self.source_time_at(self.start), self.source_time_at((self.end() - Tick(1)).max(self.start)));
+        let (lo_mt, hi_mt) = (a.min(b), a.max(b));
+        if src < lo_mt || src > hi_mt {
+            return None;
+        }
+        let (mut lo, mut hi) = (0i64, self.duration.0.max(1));
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            let m = self.moving_source_time_at(self.start + Tick(mid));
+            let hit = if self.reverse { m <= src } else { m >= src };
+            if hit {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        let t = self.start + Tick(lo.min(self.duration.0 - 1));
+        (t < self.end()).then_some(t)
+    }
+
+    /// Media ticks consumed while playing from clip-relative timeline time `from` to `to`:
+    /// ∫ rate du under the Time Remapping curve (`Keyframe::time` of the `time_remap` effect is
+    /// clip-relative timeline time), signed like `to - from` and rounded once. Without an
+    /// animated curve this is `(to - from) * |speed|` rounded, exactly as before remapping.
+    pub fn media_span(&self, from: Tick, to: Tick) -> Tick {
+        if to == from {
+            return Tick(0);
+        }
+        if to < from {
+            return -self.media_span(to, from);
+        }
+        let Some(p) = self.time_remap_speed() else {
+            // Tick arithmetic saturates, and so must the span: hostile times (i64::MIN/MAX) reach it
+            return Tick((Tick(to.0.saturating_sub(from.0)).0 as f64 * self.speed.abs()).round() as i64);
+        };
+        let rate = |t: f64| (p.f64_at(Tick(t.round() as i64)) / 100.0).abs();
+        // Trapezoidal over the pieces the keyframe times cut [from, to] into: exact for the
+        // linear and hold segments, close for the eased ones (subdivided to stay so). `value_at`
+        // answers the next key's value on the tick that ends a Hold segment, but the held rate
+        // carries through that boundary and the integral must too, so such a piece's right
+        // endpoint is sampled one tick inside it (a 10 s hold at 100 % integrates to 10 s, not
+        // 10.625 s: the next key's 200 % must not fold into the hold's last slice).
+        let hold_ends_at = |b: f64| {
+            let i = p.keyframes.partition_point(|k| (k.time.0 as f64) < b);
+            i > 0
+                && i < p.keyframes.len()
+                && p.keyframes[i].time.0 as f64 == b
+                && (p.keyframes[i - 1].interp == crate::Interpolation::Hold || !p.keyframes[i - 1].value.interpolates())
+        };
+        let piece = |pa: f64, pb: f64| {
+            let held_end = hold_ends_at(pb);
+            let r = |x: f64| if held_end && x > pa && x >= pb - 0.5 { rate(pb - 1.0) } else { rate(x) };
+            trapezoid(&r, pa, pb)
+        };
+        let (a, b) = (from.0 as f64, to.0 as f64);
+        let mut acc = 0.0;
+        let mut t = a;
+        for kf in &p.keyframes {
+            let kt = kf.time.0 as f64;
+            if kt <= t {
+                continue;
+            }
+            if kt >= b {
+                break;
+            }
+            acc += piece(t, kt);
+            t = kt;
+        }
+        acc += piece(t, b);
+        Tick(acc.round() as i64)
+    }
+    pub fn effect(&self, id: &str) -> Option<&EffectInstance> {
+        self.effects.iter().find(|e| e.effect == id)
+    }
+    pub fn effect_mut(&mut self, id: &str) -> Option<&mut EffectInstance> {
+        self.effects.iter_mut().find(|e| e.effect == id)
+    }
+    /// Standard (non-intrinsic) effects applied, for the fx badge.
+    /// The Opacity effect has masks (the layer is cut out before Motion).
+    pub fn has_opacity_masks(&self) -> bool {
+        self.effect("opacity").is_some_and(|e| e.enabled && e.masks.iter().any(|m| m.mode != mask::MaskMode::None))
+    }
+    pub fn has_standard_effects(&self) -> bool {
+        self.effects.iter().any(|e| e.def().is_some_and(|d| !d.intrinsic) && !graphic::is_layer(e))
+    }
+    /// The graphic layers (text / shape) of a graphic clip, in paint order (first = back).
+    pub fn graphic_layers(&self) -> impl Iterator<Item = &EffectInstance> {
+        self.effects.iter().filter(|e| graphic::is_layer(e))
+    }
+    pub fn has_modified_intrinsics(&self) -> bool {
+        self.effects.iter().any(|e| {
+            e.def().is_some_and(|d| d.intrinsic)
+                && (e.is_animated()
+                    || !e.masks.is_empty()
+                    || e.def().is_some_and(|d| d.params.iter().any(|p| e.params.get(p.id).is_some_and(|v| !param_eq_default(&v.value, &p.default)))))
+        })
+    }
+}
+
+/// Integral of `rate` over `[a, b]` by the trapezoidal rule, split into up to 8 slices so eased
+/// segments (non-linear speed ramps) integrate closely; exact on linear and hold segments.
+fn trapezoid(rate: &impl Fn(f64) -> f64, a: f64, b: f64) -> f64 {
+    if b <= a {
+        return 0.0;
+    }
+    const SLICES: f64 = 8.0;
+    let step = (b - a) / SLICES;
+    let mut acc = (rate(a) + rate(b)) / 2.0;
+    for i in 1..SLICES as i64 {
+        acc += rate(a + i as f64 * step);
+    }
+    acc * step
+}
+
+fn param_eq_default(v: &ParamValue, d: &ParamValue) -> bool {
+    match (v, d) {
+        (ParamValue::Vec2(_), ParamValue::Vec2(dd)) if dd.x.is_nan() => true,
+        _ => v == d,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TransitionAlign {
+    #[default]
+    CenterAtCut,
+    StartAtCut,
+    EndAtCut,
+}
+
+/// A transition on a track. `at` is the cut point (or clip edge for single-sided transitions).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Transition {
+    pub id: TransitionId,
+    pub effect: EffectInstance,
+    /// Timeline range covered by the transition.
+    pub start: Tick,
+    pub duration: Tick,
+    /// Outgoing clip (left) and incoming clip (right); one may be None (fade from/to nothing).
+    pub from: Option<ClipId>,
+    pub to: Option<ClipId>,
+    pub align: TransitionAlign,
+    #[serde(default)]
+    pub reverse: bool,
+}
+
+impl Transition {
+    pub fn end(&self) -> Tick {
+        self.start + self.duration
+    }
+    pub fn range(&self) -> TimeRange {
+        TimeRange::new(self.start, self.duration)
+    }
+    /// Progress 0..1 at timeline `t`.
+    pub fn progress(&self, t: Tick) -> f64 {
+        if self.duration.0 <= 0 {
+            return 1.0;
+        }
+        (((t - self.start).0 as f64) / self.duration.0 as f64).clamp(0.0, 1.0)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Track {
+    pub id: TrackId,
+    pub kind: TrackKind,
+    pub name: String,
+    pub items: Vec<TrackItem>,
+    pub transitions: Vec<Transition>,
+    pub locked: bool,
+    pub sync_lock: bool,
+    /// Video: eye (output) toggle. Audio: not muted.
+    pub enabled: bool,
+    pub muted: bool,
+    pub solo: bool,
+    /// Audio track channel format.
+    pub channels: AudioChannels,
+    /// Audio track volume (dB) and pan (-100..100) for the Track Mixer.
+    pub volume_db: f64,
+    pub pan: f64,
+    /// Track-level audio effects (mixer inserts, slots 1–5; `EffectInstance::post_fader` picks the side).
+    #[serde(default)]
+    pub effects: Vec<EffectInstance>,
+    /// Audio Track Mixer state: automation mode and lanes, sends, output, record arm.
+    #[serde(default)]
+    pub mixer: MixerStrip,
+    /// Colour label tinting the track's header and lane background (`None` = no colour).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<Label>,
+}
+
+impl Track {
+    pub fn new(id: TrackId, kind: TrackKind, name: String) -> Self {
+        Self {
+            id,
+            kind,
+            name,
+            items: Vec::new(),
+            transitions: Vec::new(),
+            locked: false,
+            sync_lock: true,
+            enabled: true,
+            muted: false,
+            solo: false,
+            channels: AudioChannels::Stereo,
+            volume_db: 0.0,
+            pan: 0.0,
+            effects: Vec::new(),
+            mixer: MixerStrip::default(),
+            label: None,
+        }
+    }
+    pub fn end(&self) -> Tick {
+        self.items.iter().map(|i| i.end()).max().unwrap_or(Tick::ZERO)
+    }
+    /// Item covering time `t`.
+    pub fn item_at(&self, t: Tick) -> Option<&TrackItem> {
+        // items are sorted by start
+        let idx = self.items.partition_point(|i| i.start <= t);
+        idx.checked_sub(1).map(|i| &self.items[i]).filter(|i| t < i.end())
+    }
+    pub fn item(&self, id: ClipId) -> Option<&TrackItem> {
+        self.items.iter().find(|i| i.id == id)
+    }
+    pub fn item_mut(&mut self, id: ClipId) -> Option<&mut TrackItem> {
+        self.items.iter_mut().find(|i| i.id == id)
+    }
+    pub fn sort(&mut self) {
+        self.items.sort_by_key(|i| i.start);
+        self.transitions.sort_by_key(|t| t.start);
+    }
+    /// Invariant check: items do not overlap.
+    pub fn check(&self) -> Result<(), String> {
+        // Validate before calling end(), including on a single-item track.
+        self.check_bounds()?;
+        for w in self.items.windows(2) {
+            if w[0].end() > w[1].start {
+                return Err(format!("{}: items {:?} and {:?} overlap", self.name, w[0].id, w[1].id));
+            }
+        }
+        for i in &self.items {
+            if i.duration.0 <= 0 {
+                return Err(format!("{}: item {:?} has non-positive duration", self.name, i.id));
+            }
+        }
+        Ok(())
+    }
+    /// Only the value bounds that keep timeline arithmetic from overflowing (no structural rules
+    /// such as overlap or positive duration); what a loaded project must satisfy.
+    pub fn check_bounds(&self) -> Result<(), String> {
+        for item in &self.items {
+            if !bounded_time_range(item.start, item.duration) {
+                return Err(format!("{}: item {:?} is outside supported time bounds", self.name, item.id));
+            }
+        }
+        for transition in &self.transitions {
+            if !bounded_time_range(transition.start, transition.duration) {
+                return Err(format!("{}: transition {:?} is outside supported time bounds", self.name, transition.id));
+            }
+        }
+        Ok(())
+    }
+}

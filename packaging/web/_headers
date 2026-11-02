@@ -1,0 +1,21 @@
+# Netlify / Cloudflare Pages header rules (see HOSTING.md). Other hosts: set the same headers.
+/*
+  X-Content-Type-Options: nosniff
+
+/*.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache
+
+/filmcraft-config.json
+  Cache-Control: no-cache
+
+# The same file when FilmCraft is hosted under a path prefix (`/tools/filmcraft/`): the rules
+# above match from the site root only, so keep one matching rule per prefix or this splat.
+/*/filmcraft-config.json
+  Cache-Control: no-cache
