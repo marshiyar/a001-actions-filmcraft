@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use filmcraft_geom::{Affine, Vec2};
 use filmcraft_project::graphic::{self, layer_display_name, layer_indices};
-use filmcraft_project::graphic_design::{CharStyle, DesignEnd, GraphicMeta, LayerExtra, Pin, PinTarget, RollMode, SourceGraphic, apply_char_style, clear_char_style};
+use filmcraft_project::graphic_design::{CharStyle, GraphicMeta, LayerExtra, Pin, PinTarget, RollMode, SourceGraphic, apply_char_style, clear_char_style};
 use filmcraft_project::gtemplate::{
     self, ControlKind, FontResource, GraphicsTemplate, TEMPLATE_EXTENSION, TemplateControl, base64_decode, base64_encode, builtin_templates, ensure_uids,
     layer_uid,
@@ -37,10 +37,10 @@ type Run = fn(&mut Session, &Value) -> Result<Value>;
 type Enabled = fn(&Session) -> std::result::Result<(), String>;
 
 fn spec(id: &'static str, label: &'static str, menu: &'static [&'static str], params: &'static str, enabled: Enabled, run: Run) -> CommandSpec {
-    CommandSpec { id, label, menu, shortcut: None, params, enabled, run, journal: true, named: crate::commands::NamedKeys::NONE }
+    CommandSpec { id, label, menu, shortcut: None, params, enabled, run, journal: true }
 }
 fn query(id: &'static str, label: &'static str, params: &'static str, run: Run) -> CommandSpec {
-    CommandSpec { id, label, menu: &[], shortcut: None, params, enabled: always, run, journal: false, named: crate::commands::NamedKeys::NONE }
+    CommandSpec { id, label, menu: &[], shortcut: None, params, enabled: always, run, journal: false }
 }
 
 const G: &[&str] = &["Graphics and Titles"];
@@ -642,32 +642,19 @@ fn set_roll(s: &mut Session, p: &Value) -> Result<Value> {
 fn set_responsive_time(s: &mut Session, p: &Value) -> Result<Value> {
     let clip = target_clip(s, p).ok_or_else(|| bad("graphics.setResponsiveTime", "no graphic clip"))?;
     let (intro, outro) = (dur_p(s, p, "intro"), dur_p(s, p, "outro"));
-    let end = p.get("end").and_then(|v| v.as_str());
-    let parsed_end = end
-        .map(|x| match x.to_ascii_lowercase().as_str() {
-            "animate" => Ok(DesignEnd::Animate),
-            "cut" => Ok(DesignEnd::Cut),
-            _ => Err(bad("graphics.setResponsiveTime", "`end` is `animate` or `cut`")),
-        })
-        .transpose()?;
-    if intro.is_none() && outro.is_none() && parsed_end.is_none() {
-        return Err(bad("graphics.setResponsiveTime", "need `introFrames` / `outroFrames` (or seconds / ticks), or `end`"));
+    if intro.is_none() && outro.is_none() {
+        return Err(bad("graphics.setResponsiveTime", "need `introFrames` / `outroFrames` (or seconds / ticks)"));
     }
     let m = edit_meta(s, clip, "Responsive Design - Time", |m, it| {
         if !m.has_responsive_time() {
             m.design_in = it.source_in;
-            // the media the clip shows, Time Remapping included (a plain multiple of the speed
-            // when the clip has no animated curve)
-            m.design_duration = it.source_out() - it.source_in;
+            m.design_duration = Tick((it.duration.0 as f64 * it.speed.abs()).round() as i64);
         }
         if let Some(x) = intro {
             m.intro = x.max(Tick::ZERO);
         }
         if let Some(x) = outro {
             m.outro = x.max(Tick::ZERO);
-        }
-        if let Some(x) = parsed_end {
-            m.end = x;
         }
         if m.intro + m.outro > m.design_duration {
             return Err(bad("graphics.setResponsiveTime", "the intro and outro are longer than the graphic"));
@@ -678,7 +665,7 @@ fn set_responsive_time(s: &mut Session, p: &Value) -> Result<Value> {
         }
         Ok(())
     })?;
-    Ok(json!({"clip": clip.0, "intro": m.intro.0, "outro": m.outro.0, "designDuration": m.design_duration.0, "end": if m.end == DesignEnd::Cut { "cut" } else { "animate" }}))
+    Ok(json!({"clip": clip.0, "intro": m.intro.0, "outro": m.outro.0, "designDuration": m.design_duration.0}))
 }
 
 fn edges_p(p: &Value) -> [bool; 4] {
@@ -777,7 +764,6 @@ fn char_style_p(v: &Value) -> Result<CharStyle> {
             "italic" | "fauxItalic" | "faux_italic" => c.faux_italic = x.as_bool(),
             "underline" => c.underline = x.as_bool(),
             "strikethrough" | "strike" => c.strikethrough = x.as_bool(),
-            "tateChuYoko" | "tate_chu_yoko" => c.tate_chu_yoko = x.as_bool(),
             "tracking" => c.tracking = x.as_f64().map(|v| v as f32),
             "baselineShift" | "baseline_shift" => c.baseline_shift = x.as_f64().map(|v| v as f32),
             "caps" => {

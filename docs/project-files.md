@@ -99,14 +99,8 @@ Every write of a project file, auto-save, recovery snapshot or preferences file 
 3. rename it over the target (an atomic replace on every supported OS);
 4. `fsync` the directory so the rename itself is durable.
 
-When both file and directory sync complete successfully on a filesystem that supports durable sync,
-a crash, `kill -9` or power cut after the save leaves either the complete old file or the complete
-new one. Some writable network filesystems, including some macOS SMB shares, support atomic
-replacement but explicitly do not support durable file sync. FilmCraft still performs the atomic
-rename there so an ordinary save is not refused, but the filesystem cannot guarantee which bytes
-survive a sudden power loss. Failures before the rename remove the temp file and leave the old file
-untouched. A directory-sync failure after the rename is treated as best-effort: the new file remains
-published, and the old file is no longer present at the target path.
+A crash, `kill -9` or power cut at any point leaves either the complete old file or the complete new
+one. If a step fails, the temp file is removed and the old file is untouched.
 
 Atomic writes keep the file whole, but they don't merge: of two sessions that opened the same project,
 the one that saves last replaces what the other saved. `filmcraft-cli --save` runs take turns on a lock
@@ -123,10 +117,6 @@ to avoid that ([agents.md](agents.md)); the desktop app and `mcp` sessions don't
 | `file.open {path}` | File ▸ Open Project… (⌘O) | returns `{schemaVersion, migrated}` |
 
 In the UI, Save / Save As / Save a Copy without a `path` show a file dialog.
-Open Project… shows one too. In the desktop app, when the current project has unsaved changes, it
-then asks *"Save changes to 'X' before closing?"* with **Cancel**, **Don't Save** and **Save**, and
-the chosen project opens after Save or Don't Save. File ▸ Open Recent and the Recent list on Home
-ask the same way.
 
 ## Auto Save
 

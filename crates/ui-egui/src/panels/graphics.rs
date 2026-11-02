@@ -22,7 +22,6 @@
 //! `program.textEdit`, `graphics.*` in the panels.
 
 use crate::widgets::CenteredDialog as _;
-use crate::widgets::DragCheckbox as _;
 use egui::ime_context::ImeTarget;
 use egui::{Align2, Color32, Pos2, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use filmcraft_engine::Session;
@@ -232,7 +231,6 @@ mod ime_byte_delete_tests {
             box_width: 0.0,
             box_height: 0.0,
             vertical: false,
-            tate_chu_yoko: false,
             runs: Vec::new(),
         };
         let view = super::LayerView {

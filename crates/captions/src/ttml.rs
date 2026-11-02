@@ -151,8 +151,6 @@ fn inline(text: &str) -> String {
     while !rest.is_empty() {
         if let Some(after) = rest.strip_prefix('<')
             && let Some(end) = after.find('>')
-            // Only a well-formed tag is markup; "1 < 2 and 3 > 2" and "a<b and c>d" are text.
-            && is_tag_body(&after[..end])
         {
             let tag = after[..end].trim().to_ascii_lowercase();
             let (closing, name) = match tag.strip_prefix('/') {
@@ -188,36 +186,6 @@ fn inline(text: &str) -> String {
         out.push_str("</span>");
     }
     out
-}
-
-/// Whether `body` (between `<` and `>`) is one tag token: optional `/`, a name of ASCII
-/// letters/digits starting with a letter, then optional whitespace-separated `name="value"` attributes.
-fn is_tag_body(body: &str) -> bool {
-    let body = body.trim();
-    let body = match body.strip_prefix('/') {
-        Some(closing) => closing.trim_start(),
-        None => body.strip_suffix('/').unwrap_or(body).trim_end(),
-    };
-    if !body.starts_with(|c: char| c.is_ascii_alphabetic()) {
-        return false;
-    }
-    let name_len = body.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(body.len());
-    let mut rest = &body[name_len..];
-    while !rest.is_empty() {
-        let Some(attrs) = rest.strip_prefix(|c: char| c.is_ascii_whitespace()) else { return false };
-        let attrs = attrs.trim_start();
-        if attrs.is_empty() {
-            return true;
-        }
-        let key_len = attrs.find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '-' | ':' | '_'))).unwrap_or(attrs.len());
-        if key_len == 0 {
-            return false;
-        }
-        let Some(val) = attrs[key_len..].strip_prefix("=\"") else { return false };
-        let Some(close) = val.find('"') else { return false };
-        rest = &val[close + 1..];
-    }
-    true
 }
 
 fn is_ncname(s: &str) -> bool {
@@ -567,26 +535,12 @@ impl Out {
     }
 }
 
-/// Elements nested deeper than this are not descended into. Every other nestable-document
-/// walker in the repo is capped (AAF/OMF 32, store 200, comp 16, render 8); TTML was the one
-/// that walked a document of any depth. A file can nest a thousand `<div>`s, so the walk recursed
-/// a thousand times and the parser had no bound at all. (#2065)
-const MAX_NESTING: usize = 64;
-
 /// Collect a `<p>`'s (or `<span>`'s) text with `<i>`/`<b>`/`<u>` tags, collapsing whitespace.
 fn collect(n: roxmltree::Node, styles: &std::collections::HashMap<String, Fmt>, fmt: Fmt, out: &mut Out) {
-    collect_at(n, styles, fmt, out, 0)
-}
-
-/// [`collect`], carrying the current nesting depth so it can stop at [`MAX_NESTING`].
-fn collect_at(n: roxmltree::Node, styles: &std::collections::HashMap<String, Fmt>, fmt: Fmt, out: &mut Out, depth: usize) {
-    if depth > MAX_NESTING {
-        return;
-    }
     for c in n.children() {
         if c.is_text() {
             for ch in c.text().unwrap_or("").chars() {
-                if is_xml_space(ch) {
+                if ch.is_whitespace() {
                     out.pending = true;
                 } else {
                     out.flush();
@@ -612,24 +566,19 @@ fn collect_at(n: roxmltree::Node, styles: &std::collections::HashMap<String, Fmt
                     for t in &tags {
                         out.s.push_str(&format!("<{t}>"));
                     }
-                    collect_at(c, styles, f, out, depth + 1);
+                    collect(c, styles, f, out);
                     for t in tags.iter().rev() {
                         out.s.push_str(&format!("</{t}>"));
                     }
                 }
-                _ => collect_at(c, styles, fmt, out, depth + 1),
+                _ => collect(c, styles, fmt, out),
             }
         }
     }
 }
 
-/// XML whitespace: only these characters collapse (U+00A0 and other Unicode spaces are content).
-fn is_xml_space(c: char) -> bool {
-    matches!(c, ' ' | '\t' | '\n' | '\r')
-}
-
 fn clean(s: &str) -> String {
-    s.lines().map(|l| l.trim_matches(is_xml_space)).collect::<Vec<_>>().join("\n").trim_matches(is_xml_space).to_string()
+    s.lines().map(str::trim).collect::<Vec<_>>().join("\n").trim().to_string()
 }
 
 pub fn parse(text: &str) -> Result<Document> {
@@ -711,30 +660,12 @@ fn times(n: roxmltree::Node, parent: Scope, tm: Timing, doc: &mut Document) -> T
 }
 
 fn walk(n: roxmltree::Node, parent: Scope, tm: &Timing, styles: &HashMap<String, Fmt>, speakers: &HashMap<String, String>, fmt: Fmt, doc: &mut Document) {
-    walk_at(n, parent, tm, styles, speakers, fmt, doc, 0)
-}
-
-/// [`walk`], carrying the current nesting depth so it can stop at [`MAX_NESTING`].
-fn walk_at(
-    n: roxmltree::Node,
-    parent: Scope,
-    tm: &Timing,
-    styles: &HashMap<String, Fmt>,
-    speakers: &HashMap<String, String>,
-    fmt: Fmt,
-    doc: &mut Document,
-    depth: usize,
-) {
-    if depth > MAX_NESTING {
-        doc.warnings.push(format!("TTML nested deeper than {MAX_NESTING} levels; the rest was skipped"));
-        return;
-    }
     for c in n.children().filter(|c| c.is_element()) {
         let f = style_of(c, styles, fmt);
         match c.tag_name().name() {
             "div" => {
                 let t = times(c, parent, *tm, doc);
-                walk_at(c, Scope { begin: t.begin.unwrap_or(parent.begin), end: t.end }, tm, styles, speakers, f, doc, depth + 1);
+                walk(c, Scope { begin: t.begin.unwrap_or(parent.begin), end: t.end }, tm, styles, speakers, f, doc);
             }
             "p" => {
                 let t = times(c, parent, *tm, doc);
@@ -801,17 +732,6 @@ mod tests {
     }
 
     #[test]
-    fn only_xml_whitespace_collapses_in_cue_text() {
-        let xml =
-            "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div><p begin=\"1s\" end=\"2s\">\t 10\u{a0}km\u{2009}a\u{3000}b \t\r\n  c \n</p></div></body></tt>";
-        let doc = parse(xml).unwrap();
-        assert_eq!(doc.cues[0].text, "10\u{a0}km\u{2009}a\u{3000}b c");
-        let xml = "<tt xmlns=\"http://www.w3.org/ns/ttml\"><body><div><p begin=\"1s\" end=\"2s\">\u{a0}x<br/>y\u{a0}</p></div></body></tt>";
-        let doc = parse(xml).unwrap();
-        assert_eq!(doc.cues[0].text, "\u{a0}x\ny\u{a0}");
-    }
-
-    #[test]
     fn invalid_timing_parameters_return_an_error() {
         for params in [
             r#"ttp:frameRate="0""#,
@@ -828,36 +748,6 @@ mod tests {
             );
             assert!(crate::parse(xml.as_bytes(), crate::Format::Ttml).is_err(), "{params}");
         }
-    }
-
-    /// #2065: `walk` and `collect` took no depth parameter, so a document nested a thousand
-    /// levels deep was walked in full with no warning. Both now stop at `MAX_NESTING`.
-    #[test]
-    fn deep_nesting_is_bounded_and_warns() {
-        // A document nested past the cap is truncated rather than walked in full, and says so.
-        let deep = MAX_NESTING * 4;
-        let divs = "<div>".repeat(deep);
-        let closes = "</div>".repeat(deep);
-        let xml = format!(
-            r#"<tt xmlns="http://www.w3.org/ns/ttml"><body>{divs}<p begin="1s" end="2s">Hello</p>{closes}</body></tt>"#
-        );
-        let doc = crate::parse(xml.as_bytes(), crate::Format::Ttml).unwrap();
-        assert!(
-            doc.warnings.iter().any(|w| w.contains("nested deeper")),
-            "the cutoff is reported: {:?}",
-            doc.warnings
-        );
-        assert!(doc.cues.is_empty(), "the cue sits below the cap, so it is not reached: {:?}", doc.cues);
-
-        // Real captions nest a handful of levels, and those still import whole.
-        let divs = "<div>".repeat(4);
-        let closes = "</div>".repeat(4);
-        let xml = format!(
-            r#"<tt xmlns="http://www.w3.org/ns/ttml"><body>{divs}<p begin="1s" end="2s">Hello</p>{closes}</body></tt>"#
-        );
-        let doc = crate::parse(xml.as_bytes(), crate::Format::Ttml).unwrap();
-        assert_eq!(doc.cues.len(), 1, "nesting well under the cap still imports");
-        assert!(!doc.warnings.iter().any(|w| w.contains("nested deeper")), "{:?}", doc.warnings);
     }
 
     #[test]

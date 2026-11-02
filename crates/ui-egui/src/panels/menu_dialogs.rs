@@ -17,7 +17,6 @@
 //! scratch rows `projectSettings.scratch.<key>` / `.browse` / `.same`.
 
 use crate::widgets::CenteredDialog as _;
-use crate::widgets::DragCheckbox as _;
 use egui::{Align2, RichText};
 use filmcraft_project::{FindOp, find::COLUMNS};
 use serde::{Deserialize, Serialize};
@@ -36,16 +35,13 @@ pub struct Extras {
     pub dialog: Option<ClipDialogDraft>,
     /// View ▸ Dynamic Audio Waveforms: logarithmic (dB) waveform display; off = linear amplitude.
     pub dynamic_waveforms: bool,
-    /// View ▸ Centered Audio Waveforms: the waveform is drawn on both sides of its centre line (the
-    /// peaks above and below zero); off = rectified, rising from the bottom.
-    pub centered_waveforms: bool,
     /// Paths handed to the operating system's opener (Edit Original, Reveal Log Files), newest last.
     pub opened: Vec<String>,
 }
 
 impl Default for Extras {
     fn default() -> Self {
-        Extras { dialog: None, dynamic_waveforms: true, centered_waveforms: false, opened: Vec::new() }
+        Extras { dialog: None, dynamic_waveforms: true, opened: Vec::new() }
     }
 }
 
@@ -110,11 +106,7 @@ fn enabled(app: &FilmcraftApp, id: &str) -> Result<(), String> {
 
 /// Checkmark state of this module's toggles in the menus.
 pub fn checked(app: &FilmcraftApp, id: &str) -> Option<bool> {
-    match id {
-        "view.dynamicAudioWaveforms" => Some(app.ui.extras.dynamic_waveforms),
-        "view.centeredAudioWaveforms" => Some(app.ui.extras.centered_waveforms),
-        _ => None,
-    }
+    (id == "view.dynamicAudioWaveforms").then_some(app.ui.extras.dynamic_waveforms)
 }
 
 /// Project Settings ▸ General ▸ Renderer is "Software Only": the Program monitor composites on
@@ -177,20 +169,13 @@ pub fn system_report(app: &FilmcraftApp) -> Value {
 }
 
 /// Menu / shortcut entry points. Returns None for ids this module doesn't handle.
-/// `dialogs`: whether a command sent without parameters may open its dialog (a menu, a shortcut,
-/// `ui.menu.invoke`); from `engine.execute` it may not (#1540), and the command goes on to the
-/// engine instead. The UI commands above the dialogs answer either way.
-pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Value, dialogs: bool) -> Option<Result<Value, String>> {
+pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Value) -> Option<Result<Value, String>> {
     let empty = params.as_object().is_none_or(|m| m.is_empty());
     // UI commands
     match id {
         "view.dynamicAudioWaveforms" => {
             app.ui.extras.dynamic_waveforms = params.get("on").and_then(Value::as_bool).unwrap_or(!app.ui.extras.dynamic_waveforms);
             return Some(Ok(json!({"dynamicAudioWaveforms": app.ui.extras.dynamic_waveforms})));
-        }
-        "view.centeredAudioWaveforms" => {
-            app.ui.extras.centered_waveforms = params.get("on").and_then(Value::as_bool).unwrap_or(!app.ui.extras.centered_waveforms);
-            return Some(Ok(json!({"centeredAudioWaveforms": app.ui.extras.centered_waveforms})));
         }
         "help.revealLogFiles" => {
             let r = write_session_log(app).and_then(|p| {
@@ -225,8 +210,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
             }
             return Some(r);
         }
-        // the native pickers are dialogs too: not from `engine.execute` (#1540)
-        "file.exportSelectionProject" | "file.exportAle" if params.get("path").is_none() && dialogs => {
+        "file.exportSelectionProject" | "file.exportAle" if params.get("path").is_none() => {
             if let Err(e) = enabled(app, id) {
                 return Some(Err(e));
             }
@@ -246,7 +230,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
                 app.session.execute(&id, p).map_err(|e| e.to_string())
             }));
         }
-        "file.mediaPropertiesFile" if params.get("path").is_none() && dialogs => {
+        "file.mediaPropertiesFile" if params.get("path").is_none() => {
             let exts: Vec<&str> =
                 filmcraft_media::VIDEO_EXTENSIONS.iter().chain(filmcraft_media::AUDIO_EXTENSIONS).chain(filmcraft_media::STILL_EXTENSIONS).copied().collect();
             let id = id.to_string();
@@ -262,7 +246,7 @@ pub fn route(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, params: &Val
         }
         _ => {}
     }
-    if !empty || !dialogs {
+    if !empty {
         return None;
     }
     let cmd = dialog_command(id)?;
@@ -387,7 +371,7 @@ fn defaults(app: &mut FilmcraftApp, cmd: &str, id: &str) -> Result<(Value, Value
 
 fn check(ui: &mut egui::Ui, elems: &mut Elems, pre: &str, p: &mut Value, key: &str, label: &str) {
     let mut v = p.get(key).and_then(Value::as_bool).unwrap_or(false);
-    let r = ui.checkbox_drag(&mut v, label);
+    let r = ui.checkbox(&mut v, label);
     push(elems, format!("{pre}.{key}"), &r, label);
     if r.changed() {
         p[key] = json!(v);
@@ -594,7 +578,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                     "ingest" => {
                         let mut ing = p["ingest"].clone();
                         let mut on = ing["enabled"].as_bool().unwrap_or(false);
-                        let r = ui.checkbox_drag(&mut on, tl!("Ingest"));
+                        let r = ui.checkbox(&mut on, tl!("Ingest"));
                         push(&mut elems, "projectSettings.ingest.enabled", &r, "Ingest");
                         ing["enabled"] = json!(on);
                         let actions = vec![

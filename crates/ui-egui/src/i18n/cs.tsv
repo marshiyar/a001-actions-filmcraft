@@ -98,7 +98,6 @@
 	Darkest	Nejtmavší
 	Delete Render Files	Odstranit vykreslené soubory
 	Delete Render Files In to Out	Odstranit vykreslené soubory mezi vstupním a výstupním bodem
-	Delete Work Area Render Files	Odstranit vykreslené soubory pracovní oblasti
 	Delete Tracks…	Odstranit stopy…
 	Delete Transcript	Odstranit přepis
 	Demo Footage	Ukázkové záběry
@@ -270,8 +269,6 @@
 	Rename…	Přejmenovat…
 	Render Audio	Vykreslit zvuk
 	Render Effects In to Out	Vykreslit efekty mezi vstupním a výstupním bodem
-	Render Effects in Work Area	Vykreslit efekty v pracovní oblasti
-	Render Entire Work Area	Vykreslit celou pracovní oblast
 	Render In to Out	Vykreslit mezi vstupním a výstupním bodem
 	Render Selection	Vykreslit výběr
 	Replace Fonts in Projects…	Nahradit písma v projektech…
@@ -985,7 +982,6 @@
 	Reset Effect	Obnovit výchozí efekt
 	Reset Parameter	Obnovit výchozí parametr
 	Save Preset…	Uložit přednastavení…
-	Effects: {names}	Efekty: {names}
 	Custom Setup	Vlastní nastavení
 	Edit…	Upravit…
 	Show graphs	Zobrazit grafy
@@ -3637,6 +3633,3 @@
 	Could not check for updates:\n{error}	Aktualizace se nepodařilo zkontrolovat:\n{error}
 	FilmCraft {version} is currently the newest version available.	FilmCraft {version} je nejnovější dostupná verze.
 	Looks for a newer FilmCraft release and offers to update.	Vyhledá novější vydání FilmCraftu a nabídne aktualizaci.
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Odstranit soubory náhledů, které zasahují do pracovní oblasti?

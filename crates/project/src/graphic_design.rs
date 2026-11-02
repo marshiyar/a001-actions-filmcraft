@@ -80,10 +80,6 @@ pub struct CharStyle {
     /// 0 normal, 1 all caps, 2 small caps.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub caps: Option<u32>,
-    /// Horizontal in vertical (縦中横): set these characters side by side in one cell of vertical
-    /// text (`None` = the layer's setting).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tate_chu_yoko: Option<bool>,
 }
 
 impl CharStyle {
@@ -104,7 +100,6 @@ impl CharStyle {
             tracking: over.tracking.or(self.tracking),
             baseline_shift: over.baseline_shift.or(self.baseline_shift),
             caps: over.caps.or(self.caps),
-            tate_chu_yoko: over.tate_chu_yoko.or(self.tate_chu_yoko),
         }
     }
 }
@@ -411,20 +406,6 @@ pub fn roll_offset(r: &Roll, u: Tick, d: Tick, canvas: (u32, u32), content: [f64
     }
 }
 
-/// What the clip end plays of the graphic's out-animation: `Animate` (the default) runs the
-/// protected outro against the design end; `Cut` holds the pose before the out-animation to the
-/// last frame, so a graphic can end on its current pose without editing keyframes.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DesignEnd {
-    #[default]
-    Animate,
-    Cut,
-}
-
-fn is_animate_end(e: &DesignEnd) -> bool {
-    *e == DesignEnd::default()
-}
-
 /// Graphic-level settings of a graphic clip (`TrackItem::graphic`).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -435,9 +416,6 @@ pub struct GraphicMeta {
     pub intro: Tick,
     /// Protected outro duration (up to the clip end).
     pub outro: Tick,
-    /// Whether the outro animates or the clip holds the pose before it and cuts.
-    #[serde(skip_serializing_if = "is_animate_end")]
-    pub end: DesignEnd,
     /// Media time of the clip start when the intro / outro were set; keyframes are read relative
     /// to it, so trimming the head keeps the intro playing from the new start.
     pub design_in: Tick,
@@ -464,19 +442,17 @@ impl GraphicMeta {
 /// Responsive Design – Time: the media time at which to read the graphic's keyframes at
 /// clip-relative time `u` of a clip `d` long. Inside the intro, time runs from `design_in`;
 /// inside the outro, it runs up to the designed end; the middle is stretched linearly between
-/// them. Without an intro or outro this is `design_in + u` (the plain clip time). With `end`
-/// `Cut`, the outro holds the pose the out-animation starts from instead of playing it.
+/// them. Without an intro or outro this is `design_in + u` (the plain clip time).
 pub fn remap_time(m: &GraphicMeta, u: Tick, d: Tick) -> Tick {
     if !m.has_responsive_time() {
         return m.design_in + u;
     }
     let (intro, outro, dd) = (m.intro.0.max(0), m.outro.0.max(0), m.design_duration.0);
-    let cut = m.end == DesignEnd::Cut;
     let (u, d) = (u.0, d.0);
     let local = if u < intro {
         u
     } else if d - u <= outro {
-        if cut { dd - outro } else { dd - (d - u) }
+        dd - (d - u)
     } else {
         let (a, b) = (intro as i128, (d - outro) as i128);
         let (aa, bb) = (intro as i128, (dd - outro) as i128);
@@ -508,21 +484,6 @@ mod tests {
     }
     fn bold() -> CharStyle {
         CharStyle { faux_bold: Some(true), ..Default::default() }
-    }
-
-    /// 縦中横 on a character range: saved with the graphic, merged over a base style, and clear
-    /// restores the default.
-    #[test]
-    fn tate_chu_yoko_character_style_round_trips() {
-        let tcy = CharStyle { tate_chu_yoko: Some(true), ..Default::default() };
-        assert!(!tcy.is_empty());
-        let json = serde_json::to_string(&tcy).unwrap();
-        assert!(json.contains("tateChuYoko"), "{json}");
-        assert_eq!(serde_json::from_str::<CharStyle>(&json).unwrap(), tcy);
-        assert_eq!(CharStyle::default().merged(&tcy).tate_chu_yoko, Some(true));
-        // A later range that doesn't set it keeps the earlier value.
-        let later = CharStyle { faux_bold: Some(true), ..Default::default() };
-        assert_eq!(tcy.merged(&later).tate_chu_yoko, Some(true));
     }
 
     #[test]
@@ -690,19 +651,5 @@ mod tests {
         // no responsive time: plain clip time from design_in
         let plain = GraphicMeta { design_in: sec(1.0), ..Default::default() };
         assert_eq!(remap_time(&plain, sec(2.0), sec(3.0)), sec(3.0));
-    }
-
-    #[test]
-    fn cut_end_holds_the_pose_before_the_out_animation() {
-        let mut m = GraphicMeta { intro: sec(0.5), outro: sec(0.5), design_in: Tick::ZERO, design_duration: sec(6.0), ..Default::default() };
-        // the default keeps the current timing: the outro plays against the design end
-        assert_eq!(m.end, DesignEnd::Animate);
-        assert_eq!(remap_time(&m, sec(2.9), sec(3.0)), sec(5.9));
-        m.end = DesignEnd::Cut;
-        // end Cut: the tail holds the pose the out-animation starts from, the middle still stretches
-        assert_eq!(remap_time(&m, sec(2.9), sec(3.0)), sec(5.5));
-        assert_eq!(remap_time(&m, sec(1.5), sec(3.0)), sec(3.0));
-        // an extended clip holds the same pose through its tail
-        assert_eq!(remap_time(&m, sec(8.7), sec(9.0)), sec(5.5));
     }
 }

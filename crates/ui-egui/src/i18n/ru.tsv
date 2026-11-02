@@ -87,7 +87,6 @@
 	Darkest	Самый тёмный
 	Delete Render Files	Удалить файлы визуализации
 	Delete Render Files In to Out	Удалить файлы визуализации от входа до выхода
-	Delete Work Area Render Files	Удалить файлы визуализации рабочей области
 	Delete Tracks…	Удалить дорожки…
 	Delete Transcript	Удалить транскрипт
 	Demo Footage	Демонстрационный материал
@@ -109,7 +108,6 @@
 	Editing	Монтаж
 	Effect Controls	Элементы управления эффектами
 	Effects	Эффекты
-	Effects: {names}	Эффекты: {names}
 	Ellipse	Эллипс
 	Enable	Включить
 	Enable Remix	Включить ремикс
@@ -260,8 +258,6 @@
 	Rename…	Переименовать…
 	Render Audio	Визуализировать звук
 	Render Effects In to Out	Визуализировать эффекты от входа до выхода
-	Render Effects in Work Area	Визуализировать эффекты в рабочей области
-	Render Entire Work Area	Визуализировать всю рабочую область
 	Render In to Out	Визуализировать от входа до выхода
 	Render Selection	Визуализировать выделение
 	Replace Fonts in Projects…	Заменить шрифты в проектах…
@@ -325,7 +321,6 @@
 	Synchronize…	Синхронизировать…
 	System Compatibility Report…	Отчёт о совместимости системы…
 	Tan	Бежевый
-	Tate-Chu-Yoko	Татэ-тю-ёко
 	Teal	Бирюзовый
 	Text	Текст
 	Time Interpolation	Интерполяция времени
@@ -3571,8 +3566,6 @@
 	Docking Action	Действие пристыковки
 	Resize floating panel	Изменить размер плавающей панели
 	Project Notes	Заметки проекта
-
-	Centered Audio Waveforms	Центрированные формы звуковой волны
 	Get Project Notes	Получить заметки проекта
 	Edit Project Notes	Редактировать заметки проекта
 	Notes for this project: to-dos, instructions, frame numbers… Saved with the project.	Заметки для этого проекта: задачи, инструкции, номера кадров… Сохраняются вместе с проектом.
@@ -3603,9 +3596,6 @@
 	Couldn't open your web browser	Не удалось открыть браузер
 	Open this address in your browser yourself:	Этот адрес нужно открыть в браузере вручную:
 	Reset Interface Zoom	Сбросить масштаб интерфейса
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Удалить файлы предпросмотра, пересекающие рабочую область?
 	A range marker needs a positive duration	Длительность маркера диапазона должна быть положительной
 	Add Custom Color	Добавить свой цвет
 	Add and apply	Добавить и применить

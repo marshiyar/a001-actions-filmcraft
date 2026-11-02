@@ -109,7 +109,6 @@
 	Darkest	最も暗い
 	Delete Render Files	レンダリングファイルを削除
 	Delete Render Files In to Out	イン点からアウト点までのレンダリングファイルを削除
-	Delete Work Area Render Files	ワークエリアのレンダリングファイルを削除
 	Delete Tracks…	トラックを削除…
 	Delete Transcript	文字起こしを削除
 	Demo Footage	デモ素材
@@ -283,8 +282,6 @@
 	Rename…	名前を変更…
 	Render Audio	オーディオをレンダリング
 	Render Effects In to Out	イン点からアウト点までのエフェクトをレンダリング
-	Render Effects in Work Area	ワークエリアのエフェクトをレンダリング
-	Render Entire Work Area	ワークエリア全体をレンダリング
 	Render In to Out	イン点からアウト点までをレンダリング
 	Render Selection	選択範囲をレンダリング
 	Replace Fonts in Projects…	プロジェクト内のフォントを置換…
@@ -1003,7 +1000,6 @@
 	Reset Effect	エフェクトをリセット
 	Reset Parameter	パラメーターをリセット
 	Save Preset…	プリセットを保存…
-	Effects: {names}	エフェクト：{names}
 	Custom Setup	カスタム設定
 	Edit…	編集…
 	Show graphs	グラフを表示
@@ -1051,7 +1047,6 @@
 	Leading	行送り
 	Baseline Shift	ベースラインシフト
 	Text Box Width	テキストボックスの幅
-	Tate-Chu-Yoko	縦中横
 	Style	スタイル
 	Faux Bold	疑似ボールド
 	Faux Italic	疑似イタリック
@@ -2397,7 +2392,6 @@
 	Show Focus Area	フォーカス範囲を表示
 	Show Home	ホームを表示
 	Show Mask Tracker Preview	マスクトラッカーのプレビューを表示
-	Show Discord Button	Discordボタンを表示
 	Show Only Noise	ノイズのみ表示
 	Show Open Dialog	「開く」ダイアログを表示
 	Show Project Load Error Dialog	プロジェクトの読み込みエラーダイアログを表示
@@ -3003,9 +2997,6 @@
 	AAC Audio	AAC Audio
 	AAC Audio 48 kHz 320 kbps	AAC Audio 48 kHz 320 kbps
 	MPEG-4 audio (.m4a), stereo 48 kHz AAC-LC at 320 kbps	MPEG-4 オーディオ (.m4a)、ステレオ 48 kHz AAC-LC 320 kbps
-	MP3	MP3
-	MP3 48 kHz 320 kbps	MP3 48 kHz 320 kbps
-	MPEG audio (.mp3), joint stereo 48 kHz at 320 kbps	MPEG オーディオ (.mp3)、ジョイントステレオ 48 kHz 320 kbps
 	AIFF	AIFF
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16-bit
 	AIFF, stereo 48 kHz 16-bit PCM	AIFF、ステレオ 48 kHz 16-bit PCM
@@ -3260,7 +3251,7 @@
 	Hide Others	ほかを隠す
 	Quit FilmCraft	FilmCraft を終了
 	Rate Stretch Tool	レートストレッチツール
-	Cut Tool	カミソリツール
+	Razor Tool	カミソリツール
 	Rectangle Tool	長方形ツール
 	Remix Tool	リミックスツール
 	Right align text	テキストを右揃え
@@ -3662,7 +3653,6 @@
 	Invalid duration: {error}	無効なデュレーション: {error}
 	H.265 (HEVC) needs a hardware encoder (NVENC on NVIDIA GPUs, VideoToolbox on macOS); none was found on this machine, and FilmCraft has no software H.265 encoder yet. Choose H.264 or ProRes instead.	H.265 (HEVC) にはハードウェアエンコーダー（NVIDIA GPU の NVENC、macOS の VideoToolbox）が必要です。このマシンには見つからず、FilmCraft にはまだソフトウェアの H.265 エンコーダーがありません。代わりに H.264 または ProRes を選んでください。
 	AV1 needs a hardware encoder; none was found on this machine, and FilmCraft has no software AV1 encoder yet.	AV1 にはハードウェアエンコーダーが必要です。このマシンには見つからず、FilmCraft にはまだソフトウェアの AV1 エンコーダーがありません。
-	Centered Audio Waveforms	中央揃えのオーディオ波形
 	Enter a positive duration within the supported speed range.	対応する速度の範囲内で正の長さを入力してください。
 	Show Video Names	ビデオ名を表示
 	Show Audio Names	オーディオ名を表示
@@ -3682,9 +3672,6 @@
 	Change the sequence to match the clip's settings?	シーケンスをクリップの設定に合わせますか？
 	Change Sequence Settings	シーケンス設定を変更
 	Keep Existing Settings	現在の設定を維持
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	ワークエリアと重なるプレビューファイルを削除しますか？
 	Temporal Interpolation	時間補間
 	Select items to clear	消去する項目を選択してください
 	Opens in your web browser: {url}	ウェブブラウザーで開きます：{url}

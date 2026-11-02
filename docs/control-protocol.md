@@ -57,7 +57,7 @@ Methods (handlers in `crates/ui-egui/src/control.rs`):
 | `ui.drag` | `{from, to, steps, modifiers}` | press–move–release; `steps` is an integer 0–1024 (default 12; 0 or 1 uses 2 steps) |
 | `ui.scroll` | `{id|x,y, dx, dy, modifiers}` | wheel / trackpad |
 | `ui.key` / `ui.type` | `{key}` (`Cmd+K`, `Space`…; off macOS `Ctrl+K` is the same key) / `{text}` | keyboard |
-| `ui.timeline.hit` / `ui.timeline.locate` | `{x,y,modifiers?}` / `{clip, edge?}` | timeline hit-testing. `hit` reports a clip's `edge` (`In`/`Out`) within 7 px of it (a third of a narrow clip); just left of a cut that is the left clip's Out, from the cut rightwards the right clip's In. `kind` is the trim a press of the current tool with `modifiers` starts there (`trim`, `ripple`, `roll`, `rateStretch`, `rippleRateStretch` (Rate Stretch with Shift on an Out edge), `remix`), `volume` on an audio clip's Volume line (Selection and Pen tools), or null. On the ruler it reports `ruler`, or `workArea` with the bar's `edge` on the work area bar |
+| `ui.timeline.hit` / `ui.timeline.locate` | `{x,y,modifiers?}` / `{clip, edge?}` | timeline hit-testing. `hit` reports a clip's `edge` (`In`/`Out`) within 7 px of it (a third of a narrow clip); just left of a cut that is the left clip's Out, from the cut rightwards the right clip's In. `kind` is the trim a press of the current tool with `modifiers` starts there (`trim`, `ripple`, `roll`, `rateStretch`, `remix`), `volume` on an audio clip's Volume line (Selection and Pen tools), or null. On the ruler it reports `ruler`, or `workArea` with the bar's `edge` on the work area bar |
 | `ui.playback` | `{action: play|stop|toggle, speed?}` | |
 | `ui.screenshot` | `{path?, panel?}` | PNG of the window or one panel; fails after 10 s when no frame is presented (window hidden, display asleep) |
 | `ui.resize`, `app.quit` | `{width,height}` / `{}` | resize or close the native window; `app.quit` quits without the save prompt (unsaved changes stay in the recovery journal), while the command `app.quit` asks first |
@@ -174,18 +174,6 @@ covers every clip. The edit is the same either way. From Bin starts each clip at
 no media outside its range, so there a kept In is moved to the subclip's first or last frame, and
 the result's `sourceInClamped: [ids]` (present with `keepSourceIn`) names the clips it was moved for.
 
-**Work area previews**: `sequence.renderEffectsInWorkArea {wait?}` renders the red sections of
-the render bar inside the active sequence's work area, and `sequence.renderEntireWorkArea
-{wait?}` renders the red and yellow ones; frames that already have a preview are kept, and
-`wait` defaults to `false`. `sequence.deleteWorkAreaRenderFiles` deletes every preview file that
-holds a frame inside the work area, except a file another sequence also uses, and returns
-`{deleted}`. All three return an error when the active sequence has no work area. `engine.execute`
-and `ui.menu.invoke` with a non-empty `params` object run the delete at once; `ui.menu.invoke`
-without params, the Sequence menu and a key open a confirmation first (ids
-`sequence.deleteWorkAreaRenderFiles.ok|cancel`). While the Work Area Bar is on, the keys of
-`sequence.renderEffectsInToOut`, `sequence.renderInToOut` and `sequence.deleteRenderFilesInToOut`
-run the matching work-area command.
-
 **Colour** (`crates/engine/src/color.rs`): `sequence.colorSettings {workingSpace: rec709|rec2100-pq|
 rec2100-hlg, wideGamut, autoToneMap}`, `clip.interpretFootage {items?, colorSpace?: auto|<id>, pixelAspect?: [num, den]|file}`,
 `color.spaces`, `media.colorInfo {item}`; LUTs: `lut.import {path, name?}`, `lut.list`,
@@ -217,17 +205,6 @@ Annotations, argument checking, errors and export progress / cancellation:
 
 Time is in ticks (254 016 000 000 per second); commands also accept `seconds`, `frame` or `timecode`.
 
-## Parameter dialogs
-
-From a menu, a shortcut or `ui.menu.invoke`, a command sent without parameters opens the dialog
-that asks for them (Sequence Settings…, Add Tracks…, Audio Gain…, Interpret Footage…, Remix
-Properties…, New Sequence…, Color Management…, Find…, Media Properties…, Simplify Sequence…, Link
-Media…, Make Offline…, Create Proxies…, Project Manager… and the other dialog commands).
-`engine.execute` never does (#1540): an agent can neither see nor close a dialog. The engine command runs with the parameters given (so `sequence.addTracks {}`
-adds its default one video track, `clip.audioGain {}` answers "need `db`"), and
-`sequence.settings {}` answers `{"settings"}`, the active sequence's settings as `sequence.inspect`
-reports them, instead of showing them. Confirmations (`file.revert`, `file.recover`) still ask.
-
 ## Panel docking commands
 
 `ui.menu.invoke` and `engine.execute` route these frontend commands:
@@ -246,8 +223,7 @@ geometry handles; `dock.gutter.<path>`
 locates a split divider (`a`/`b` per split level), `dock.corner.<outer path>.<inner path>` the
 four-way handle where two dividers meet, `panel.float.<index>.gutter.<path>` and
 `panel.float.<index>.corner.<outer path>.<inner path>` the same inside a floating window;
-`ui.docking` lists every docking gesture source. `ui.monitors` lists the connected displays the dock
-keeps floating windows on ([multi-monitor.md](multi-monitor.md)). Named workspace saves include floating windows.
+`ui.docking` lists every docking gesture source. Named workspace saves include floating windows.
 
 The panels use craft-ui's shared docking with its split-tree settings. Its control commands
 (`window.panel.move`, `.float`, `.dock`, `.activate`, `.close`, `.closeGroup`, `.closeOthers`,

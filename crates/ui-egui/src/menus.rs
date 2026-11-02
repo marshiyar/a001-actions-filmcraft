@@ -107,7 +107,6 @@ pub const UI_COMMANDS: &[UiCommand] = &[
     uic!("view.guideTemplates.delete", "Delete Guide Template", [], None),
     uic!("view.compare.setReference", "Set Comparison Reference", [], None),
     uic!("view.dynamicAudioWaveforms", "Dynamic Audio Waveforms", ["View"], None),
-    uic!("view.centeredAudioWaveforms", "Centered Audio Waveforms", ["View"], None),
     uic!("multicam.toggleView", "Multi-Camera View", ["View"], Some("Shift+0")),
     uic!("multicam.recordToggle", "Multi-Camera Record On/Off Toggle", [], Some("0")),
     uic!("multicam.editCamerasDialog", "Edit Cameras…", [], None),
@@ -225,16 +224,6 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
     // Insert / Overwrite of a first clip that doesn't match the empty sequence: the Clip Mismatch Warning asks first
     if matches!(id, "source.insert" | "source.overwrite") && crate::panels::clip_mismatch::ask(app, id, &params) {
         return Ok(json!({"dialog": "clipMismatch"}));
-    }
-    // From a menu, a shortcut or `ui.menu.invoke`, a command without parameters opens the dialog
-    // that asks for them. From the control channel's `engine.execute` it does not (#1540): an agent
-    // can neither see nor close a dialog, so the engine command runs with what was given, and
-    // Sequence Settings… answers the settings it would have shown.
-    let menu = !app.engine_call;
-    if !menu && id == "sequence.settings" && params.as_object().is_none_or(|m| m.is_empty()) {
-        filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
-        let seq = app.session.execute("sequence.inspect", json!({})).map_err(|e| e.to_string())?;
-        return Ok(json!({"settings": seq["settings"]}));
     }
     if filmcraft_engine::source_monitor::source_command(id) && targets_source(app, &params) && params.get("target").is_none() {
         let object = params.as_object_mut().ok_or("command parameters must be an object")?;
@@ -357,12 +346,6 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
         }
         return r;
     }
-    if let Some(r) = crate::panels::misc::route_work_area_delete(app, ctx, id, &params) {
-        if let Err(e) = &r {
-            app.ui.status = e.clone();
-        }
-        return r;
-    }
     if let Some(r) = crate::panels::settings::route(app, id) {
         return r;
     }
@@ -372,16 +355,13 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
         }
         return r;
     }
-    // The dialogs answer only the menu (#1540): from `engine.execute` the command goes on to the
-    // engine with the parameters given, and answers an error when it needs some. The UI commands
-    // the menu-dialog route also carries (dynamic waveforms, reveal, …) answer either way.
-    if let Some(r) = crate::panels::menu_dialogs::route(app, ctx, id, &params, menu) {
+    if let Some(r) = crate::panels::menu_dialogs::route(app, ctx, id, &params) {
         if let Err(e) = &r {
             app.ui.status = e.clone();
         }
         return r;
     }
-    if menu && let Some(r) = crate::panels::media_dialogs::route(app, id, &params) {
+    if let Some(r) = crate::panels::media_dialogs::route(app, id, &params) {
         if let Err(e) = &r {
             app.ui.status = e.clone();
         }
@@ -490,15 +470,8 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
         "view.zoomIn" | "view.zoomOut" => {
             let f = if id == "view.zoomIn" { 1.6 } else { 1.0 / 1.6 };
             let ph = app.session.playhead().seconds();
-            let secs = app.session.active_sequence().map(|s| s.duration().seconds()).unwrap_or(0.0);
-            crate::panels::timeline::zoom_about(
-                &mut app.ui.timeline,
-                f,
-                ph,
-                app.last_timeline_width,
-                app.session.state.timeline_ui.max_zoom_secs(),
-                secs,
-            );
+            let seconds = app.session.active_sequence().map_or(0.0, |s| s.duration().seconds());
+            crate::panels::timeline::zoom_about(&mut app.ui.timeline, f, ph, app.last_timeline_width, seconds);
             return Ok(Value::Null);
         }
         "view.zoomToSequence" => {
@@ -559,7 +532,7 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             return Ok(json!({"mode": "export"}));
         }
         // Audio Gain from the menu or G opens the dialog; with params it applies directly.
-        "clip.audioGain" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "clip.audioGain" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command("clip.audioGain").map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             if app.ui.audio_gain.mode.is_empty() {
                 app.ui.audio_gain.mode = "adjust".into();
@@ -568,19 +541,19 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             return Ok(json!({"dialog": "audioGain"}));
         }
         // Colour dialogs from the menus; with params the engine command applies directly.
-        "clip.interpretFootage" if menu && params.get("colorSpace").is_none() && params.get("pixelAspect").is_none() => {
+        "clip.interpretFootage" if params.get("colorSpace").is_none() && params.get("pixelAspect").is_none() => {
             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             crate::panels::color_dialogs::open_interpret(app, &params);
             return Ok(json!({"dialog": "interpretFootage"}));
         }
         // Remix Properties… from the menu opens the dialog; with params it applies directly.
-        "clip.remix.properties" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "clip.remix.properties" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             return crate::panels::remix::open(app, ctx);
         }
         // Add Tracks… from the menu opens the dialog (new tracks after the last ones, as Premiere
         // offers); with params it adds the tracks directly.
-        "sequence.addTracks" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "sequence.addTracks" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             let seq = app.session.active_sequence();
             let count = |f: fn(&filmcraft_engine::project::Sequence) -> usize| seq.map_or(0, f);
@@ -593,7 +566,7 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
             app.dialog = Some(crate::Dialog::AddTracks);
             return Ok(json!({"dialog": "addTracks"}));
         }
-        "sequence.deleteTracks" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "sequence.deleteTracks" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             app.ui.delete_tracks = Default::default();
             app.dialog = Some(crate::Dialog::DeleteTracks);
@@ -601,18 +574,18 @@ pub fn invoke_command(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str, mut
         }
         // Sequence Settings… from the menu opens the dialog; with params the engine command applies
         // them directly.
-        "sequence.settings" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "sequence.settings" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             crate::panels::sequence_settings::open(app);
             return Ok(json!({"dialog": "sequenceSettings"}));
         }
         // File ▸ New ▸ Sequence… (Cmd+N) opens New Sequence; with params (a clip, an agent) it
         // makes the sequence directly
-        "file.newSequence" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "file.newSequence" if params.as_object().is_none_or(|m| m.is_empty()) => {
             crate::panels::sequence_settings::open_new(app);
             return Ok(json!({"dialog": "newSequence"}));
         }
-        "sequence.colorSettings" if menu && params.as_object().is_none_or(|m| m.is_empty()) => {
+        "sequence.colorSettings" if params.as_object().is_none_or(|m| m.is_empty()) => {
             filmcraft_engine::find_command(id).map_or(Ok(()), |c| (c.enabled)(&app.session))?;
             crate::panels::color_dialogs::open_sequence(app);
             return Ok(json!({"dialog": "sequenceColor"}));
@@ -736,9 +709,6 @@ pub(crate) fn saved_status(app: &mut FilmcraftApp, id: &str, path: &str) {
 /// the keyboard, in the main window or a floating panel's own window, the field gets the key
 /// and the project command does not run.
 pub fn activate_native(app: &mut FilmcraftApp, ctx: &egui::Context, id: &str) -> Result<Value, String> {
-    // The native menu keeps the items it was built with, so an In/Out render or delete item stands
-    // in for its work-area command while the Work Area Bar is on, and the other way around.
-    let id = shown_render_command(&app.session, id);
     // Select All of a graphic's text is already handled in `invoke`
     if text_field_window(ctx).is_none() && app.ui.gfx_edit.is_some() && matches!(id, "edit.copy" | "edit.cut" | "edit.paste") {
         return Ok(graphic_text_command(app, ctx, id));
@@ -1043,43 +1013,11 @@ pub fn default_menu_items() -> Vec<MenuItem> {
     v
 }
 
-/// Each In/Out render or delete command and the work-area command that takes its place in the
-/// Sequence menu, and runs from its keys, while the Work Area Bar is on.
-const WORK_AREA_COMMANDS: [(&str, &str); 3] = [
-    ("sequence.renderEffectsInToOut", "sequence.renderEffectsInWorkArea"),
-    ("sequence.renderInToOut", "sequence.renderEntireWorkArea"),
-    ("sequence.deleteRenderFilesInToOut", "sequence.deleteWorkAreaRenderFiles"),
-];
-
-/// The other command of `id`'s In/Out and work-area pair, for the three render and delete pairs.
-pub fn work_area_counterpart(id: &str) -> Option<&'static str> {
-    WORK_AREA_COMMANDS.iter().find_map(|&(in_out, work_area)| {
-        if id == in_out {
-            Some(work_area)
-        } else if id == work_area {
-            Some(in_out)
-        } else {
-            None
-        }
-    })
-}
-
-/// The command a key or native menu item bound to `id` runs: the work-area command of an In/Out
-/// render or delete command while the Work Area Bar is on, the In/Out command of a work-area
-/// command while it is off, and `id` itself otherwise.
-pub fn shown_render_command<'a>(session: &filmcraft_engine::Session, id: &'a str) -> &'a str {
-    let work_area = session.active_sequence().is_some_and(|q| q.work_area.is_some());
-    let hidden = if work_area { WORK_AREA_COMMANDS.iter().any(|(in_out, _)| *in_out == id) } else { WORK_AREA_COMMANDS.iter().any(|(_, w)| *w == id) };
-    if hidden { work_area_counterpart(id).unwrap_or(id) } else { id }
-}
-
 /// Menu entries with their live shortcuts and enablement.
 pub fn menu_items_for(session: &filmcraft_engine::Session) -> Vec<MenuItem> {
     let mut out = Vec::new();
-    let work_area = session.active_sequence().is_some_and(|q| q.work_area.is_some());
     for c in filmcraft_engine::command_specs() {
-        let in_out = WORK_AREA_COMMANDS.iter().find(|(_, w)| *w == c.id).map(|(in_out, _)| *in_out);
-        if c.menu.is_empty() || (work_area && WORK_AREA_COMMANDS.iter().any(|(i, _)| *i == c.id)) || (!work_area && in_out.is_some()) {
+        if c.menu.is_empty() {
             continue;
         }
         // Edit ▸ Label items carry the names from Settings ▸ Labels
@@ -1091,7 +1029,7 @@ pub fn menu_items_for(session: &filmcraft_engine::Session) -> Vec<MenuItem> {
             id: c.id.into(),
             label,
             path: c.menu.iter().map(|s| s.to_string()).collect(),
-            shortcut: session.shortcuts.primary(c.id).or_else(|| work_area_counterpart(c.id).and_then(|id| session.shortcuts.primary(id))),
+            shortcut: session.shortcuts.primary(c.id),
             enabled: session.is_enabled(c.id),
             checked: None,
         });

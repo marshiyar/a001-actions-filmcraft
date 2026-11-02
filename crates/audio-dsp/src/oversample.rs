@@ -67,6 +67,9 @@ impl PolyphaseBank {
         }
         PolyphaseBank { factor, coeffs }
     }
+    pub fn factor(&self) -> usize {
+        self.factor
+    }
     /// Approximate delay (in input samples) between an input sample and the interpolated
     /// values around it.
     pub fn delay(&self) -> usize {

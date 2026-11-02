@@ -56,7 +56,6 @@ and `filmcraft-cli`.
 | `av1` | L0 | AV1 decoder (Main profile; bit-exact with libdav1d; see its README for the stage table) |
 | `mpeg2v` | L0 | MPEG-2 video (Main / 4:2:2 profile; frame and field pictures, dual prime) and MPEG-1 video decoder ([README](../crates/mpeg2v/README.md)) |
 | `aac` | L0 | AAC-LC decoder and encoder |
-| `mp3enc` | L0 | MPEG-1/2 Audio Layer III (MP3) encoder: CBR, mono / stereo / joint stereo, bit reservoir ([README](../crates/mp3enc/README.md)) |
 | `ac3` | L0 | AC-3 (ATSC A/52) decoder ([README](../crates/ac3/README.md)) |
 | `mpa` | L0 | MPEG-1/2 Audio Layer I and II (MP1 / MP2) decoder ([README](../crates/mpa/README.md)) |
 | `testkit` | L0 | test-only helpers, used only as a dev-dependency: ffmpeg/ffprobe discovery, fixture dirs, golden images ([testing.md](testing.md)) |
@@ -248,11 +247,6 @@ file ──► codecs (MP4/MOV, MKV, audio)        demux + decode, GOP-aware see
   every frame of the GOP. Sequential playback reuses the decoder. Decoders implement
   `codecs::VideoDecoder`. `register_video_decoder` puts a factory in front of the built-in ones, so a
   hardware decoder can take precedence. The GOP cache never holds its lock while decoding.
-  Several frame jobs can share one decoder: each request registers the frame it waits for, and
-  eviction keeps those frames, so a job decoding past them does not make the others seek back and
-  decode their GOP again. A decoder that has not reached the wanted frame's sync sample and is more
-  than 8 samples short of it restarts there instead of decoding forward, unless another request
-  waits for a frame in between; one already past that sync sample carries on.
 - **Hardware decoding.** The apps (desktop, CLI / headless MCP, bench) call
   `filmcraft_platform::register()` at startup, which on macOS registers a VideoToolbox factory for
   `avcC` / `hvcC` streams (8 / 10-bit, 4:2:0 and 4:2:2; elsewhere it does nothing), and on Windows a
@@ -352,7 +346,7 @@ file ──► codecs (MP4/MOV, MKV, audio)        demux + decode, GOP-aware see
 - **Frame scheduling.** `crates/ui-egui/src/frames.rs` runs a small pool of worker threads with
   prioritised jobs: the frame on screen first, then playback prefetch, then thumbnails. The UI never
   decodes. It shows the exact frame when it is ready and holds the nearest cached frame meanwhile.
-  Play waits for the first frames (`PREROLL_FRAMES`, at most `PREROLL_TIMEOUT_S` = 0.1 s) before starting the clock.
+  Play waits for the first frames (`PREROLL_FRAMES`, at most 0.5 s) before starting the clock.
   Every refresh, `schedule_playback` asks for the next frames and drops (or cancels, through
   `filmcraft_media::cancel`) jobs for frames the playhead has passed; a new on-screen frame
   replaces the one asked for before (scrubbing); Stop cancels the prefetch. When frames cost more
@@ -607,11 +601,7 @@ frame (Y'CbCr/RGB + metadata) ─► source colour space: Interpret Footage over
   HDR sequences are shown tone mapped. macOS EDR (extended-range `CAMetalLayer` output) is not
   wired up: there is no `platform` crate yet and eframe/wgpu do not expose an EDR surface, so HDR
   values above SDR white are never sent to the display. The scopes of an HDR sequence show the
-  working-space values (waveform in cd/m² on a PQ scale, BT.2020 vectorscope). The Lumetri Scopes
-  panel computes its signal and images on the UI's scope worker (`crates/ui-egui/src/scope_worker.rs`),
-  never in the UI pass: the newest request per scope wins and the last result stays on screen until
-  the next lands. An HDR scope render (the frame rendered again, in working space) starts at most
-  every 100 ms while playing.
+  working-space values (waveform in cd/m² on a PQ scale, BT.2020 vectorscope).
 - **LUTs.** Lumetri Input LUT and Creative Look reference `lib:<id>` (the project's LUT library,
   `Project::luts`, embedded `.cube`/`.3dl` text) or `builtin:<id>` (code-generated camera
   conversions and looks). `filmcraft-gpu::GpuLut` is the WGSL tetrahedral counterpart, tested for
@@ -687,7 +677,6 @@ file.exportMedia {path, preset?, settings?, format?, range?, …}     export.qui
 | `dnxhr` | `filmcraft-dnx` (LB / SQ / HQ / HQX) | MOV (`AVdh`) |
 | `mjpeg` | built in | MOV |
 | `aac` | `filmcraft-aac` (AAC-LC, the audio settings' bitrate) | audio only: MPEG-4 audio `.m4a` (`isobmff`, priming in an edit list), or raw ADTS when the path ends in `.aac` |
-| `mp3` | `filmcraft-mp3enc` (Layer III CBR, the audio settings' bitrate snapped to a Layer III one; 16-48 kHz, mono or stereo) | audio only: a plain `.mp3` stream of frames (no ID3 or gapless tag) |
 | `mxf-op1a` | DNxHR (default), ProRes or H.264 (Annex B, long GOP), `mxfVideoCodec`; PCM 16/24/32-bit integer | MXF OP1a (`filmcraft-mxf` writer: frame-wrapped, index with temporal offsets, start timecode) |
 | `mxf-opatom` | as `mxf-op1a` | Avid-style MXF OP-Atom: clip-wrapped picture at `path`, one mono PCM file per channel (`<stem>_A1.mxf` …, `Report::extra_files`) |
 | `png`, `tiff`, `bmp`, `jpg` | `image` | numbered stills `<name>000.<ext>`, `<name>001.<ext>` … |
@@ -712,12 +701,7 @@ file.exportMedia {path, preset?, settings?, format?, range?, …}     export.qui
   H.264 at 0.2 / 0.1 / 0.05 bits per pixel, 1080p / 2160p delivery, vertical 1080×1920 and its
   TikTok / Instagram Reels / YouTube Shorts variants with loudness normalized to −14 LUFS, ProRes,
   DNxHR, MXF OP1a (DNxHR HQ / ProRes 422 HQ / H.264) and OP-Atom (DNxHR, Avid), image sequences, GIF, WAV / AIFF). User presets and favourites persist in
-  `<data dir>/export-presets.json` (`export.presets.*`). An H.264 export that names no preset
-  (`file.exportMedia`, `export.queue.add`, `export.resolve`, `export.presets.save` without `from`,
-  `filmcraft-cli export --format h264`) starts from the default preset, as Export mode and Quick
-  Export do; other formats start from `ExportSettings::default()`. `bitrateKbps: 20000` keeps the
-  fixed rate of earlier versions, and `settings: {"audio": {"sampleRate": null}}` the sequence's
-  sample rate instead of the preset's 48 kHz. A `bitrateKbps` in `settings` turns the
+  `<data dir>/export-presets.json` (`export.presets.*`). A `bitrateKbps` in `settings` turns the
   adaptive bitrate off, as the flat parameter does, unless `adaptiveBitrate` comes with it.
 - **Queue.** `export.queue.add` snapshots the project and the resolved settings (several sequences
   or ranges add several items); `export.queue.start` encodes ready items one after another as

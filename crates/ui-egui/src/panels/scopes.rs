@@ -1,10 +1,8 @@
 //! Lumetri Scopes: Vectorscope YUV / HLS, Histogram, Parade (RGB / YUV / RGB-White) and Waveform
 //! (RGB / Luma / YC / YC no Chroma) of the Program frame, in a grid when several are shown.
 //!
-//! The maths is in `filmcraft-scopes` (count grids from the decimated frame); this module has them
-//! computed on the scope worker (`crate::scope_worker`, never in the UI pass, so open scopes do not
-//! stall playback), turns them into textures (cached per frame and settings) and draws the
-//! graticules, labels and the
+//! The maths is in `filmcraft-scopes` (count grids from the decimated frame); this module turns
+//! them into textures (cached per frame and settings) and draws the graticules, labels and the
 //! panel chrome: the footer (colour space, wrench, Clamp Signal, 8 Bit / Float / HDR) and the
 //! settings menu (wrench or right-click: Presets, the scopes, Waveform / Parade Type, Colour
 //! Space, Brightness, Vectorscope Targets).
@@ -15,7 +13,6 @@
 //! `scopes.menu.colorSpace.<space>`, `scopes.menu.brightness.<b>`, `scopes.menu.targets.<75|100>`;
 //! `scopes.hdrWaveform` while levels are shown in cd/m². State: `ui.panels.scopes`.
 
-use crate::widgets::DragCheckbox as _;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -26,7 +23,6 @@ use crate::FilmcraftApp;
 use crate::frames::{FrameKey, Target};
 use crate::icons::{self, Icon};
 use crate::panels::panel_state::{SCOPE_PRESETS, ScopesState};
-use crate::scope_worker::Done;
 use crate::theme::Tokens;
 
 const GRATICULE: Color32 = Color32::from_rgb(0x2a, 0x2a, 0x2a);
@@ -50,20 +46,9 @@ fn hash_of(v: impl Hash) -> u64 {
     h.finish()
 }
 
-/// While playing, a new HDR scope render starts at most this often: it renders (and decodes) the
-/// frame a second time, next to the Program monitor's own work.
-const HDR_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
-
-/// A scope signal the worker made, and whether it holds PQ code values.
-struct SignalOut {
-    signal: Arc<Signal>,
-    pq: bool,
-}
-
 /// The active sequence's frame `frame` for the scopes: the monitor picture (¼ resolution, from
 /// the frame workers at priority `prio`) or, for Rec. 2100 scopes of an HDR sequence, a small
-/// working-space render. Both are turned into a signal on the scope worker, never in the UI pass;
-/// until the new frame's signal is there the last one stays.
+/// working-space render. While a new frame renders the last one stays.
 pub fn frame_signal(app: &mut FilmcraftApp, ctx: &egui::Context, slot: &str, frame: i64, st: &ScopesState, prio: u32) -> Option<ScopeFrame> {
     let seq_id = app.session.state.active_sequence?;
     let q = app.session.active_sequence()?;
@@ -73,45 +58,29 @@ pub fn frame_signal(app: &mut FilmcraftApp, ctx: &egui::Context, slot: &str, fra
     let rate = q.settings.frame_rate;
     let rev = app.session.revision;
     let id = egui::Id::unique(("scope-signal", slot));
-    let mut cached: Option<(u64, Arc<Signal>, bool)> = ctx.data(|d| d.get_temp(id));
+    let cached: Option<(u64, Arc<Signal>, bool)> = ctx.data(|d| d.get_temp(id));
     let key = hash_of((seq_id.0, frame, rev, pq));
-    // the newest signal the worker finished for this slot (while playing, an earlier frame's)
-    let wslot = format!("signal-{slot}");
-    if let Some((k, done)) = app.scope_worker.result(&wslot)
-        && cached.as_ref().is_none_or(|c| c.0 != k)
-        && let Some(out) = done.downcast_ref::<SignalOut>()
-    {
-        cached = Some((k, out.signal.clone(), out.pq));
-        ctx.data_mut(|d| d.insert_temp(id, (k, out.signal.clone(), out.pq)));
-    }
     if let Some((k, s, p)) = &cached
         && *k == key
     {
         return Some(ScopeFrame { signal: s.clone(), key, pq: *p, space });
     }
-    if pq {
-        let at = egui::Id::unique(("scope-signal-at", slot));
-        let now = web_time::Instant::now();
-        let last: Option<web_time::Instant> = ctx.data(|d| d.get_temp(at));
-        if !app.playback.playing || last.is_none_or(|t| now.duration_since(t) >= HDR_INTERVAL) {
-            ctx.data_mut(|d| d.insert_temp(at, now));
-            let (project, pool, services, t) = (app.session.project.clone(), app.session.media.clone(), app.session.services.clone(), rate.tick_of(frame));
-            app.scope_worker.submit(ctx, &wslot, key, move || {
-                let provider = pool.provider(project.clone(), services);
-                let signal = Arc::new(filmcraft_engine::scopes::scope_signal_of(&project, seq_id, &provider, t, 0.125, true));
-                Some(Arc::new(SignalOut { signal, pq: true }) as Done)
-            });
-        }
+    let fresh = if pq {
+        filmcraft_engine::scopes::scope_signal(&app.session, rate.tick_of(frame), 0.125, true)
     } else {
         let fkey = FrameKey { target: Target::Sequence(seq_id), frame, size: 250, revision: rev, draft: false };
         let project = app.session.project.clone();
         app.frames.request(fkey, rate.tick_of(frame), 0.25, &project, prio);
-        if let Some(img) = app.frames.get(&fkey) {
-            app.scope_worker
-                .submit(ctx, &wslot, key, move || Some(Arc::new(SignalOut { signal: Arc::new(Signal::from_rgba8(img.w, img.h, &img.px)), pq: false }) as Done));
+        app.frames.get(&fkey).map(|img| Signal::from_rgba8(img.w, img.h, &img.px))
+    };
+    match fresh {
+        Some(s) => {
+            let s = Arc::new(s);
+            ctx.data_mut(|d| d.insert_temp(id, (key, s.clone(), pq)));
+            Some(ScopeFrame { signal: s, key, pq, space })
         }
+        None => cached.filter(|c| c.2 == pq).map(|(k, s, p)| ScopeFrame { signal: s, key: k, pq: p, space }),
     }
-    cached.filter(|c| c.2 == pq).map(|(k, s, p)| ScopeFrame { signal: s, key: k, pq: p, space })
 }
 
 /// The Lumetri Scopes panel.
@@ -162,7 +131,7 @@ fn footer(app: &mut FilmcraftApp, ui: &mut egui::Ui, r: Rect, space: Option<Colo
     let cr = Rect::from_min_size(pos2(sr.min.x - cw - 10.0, r.min.y + 4.0), vec2(cw, 22.0));
     let mut clamp = clamp0;
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(cr));
-    let cresp = child.checkbox_drag(&mut clamp, tl!("Clamp Signal"));
+    let cresp = child.checkbox(&mut clamp, tl!("Clamp Signal"));
     app.auto.add("scopes.clamp", cresp.rect, "Clamp Signal");
     let wr = Rect::from_center_size(pos2(cr.min.x - 16.0, r.center().y), vec2(22.0, 22.0));
     let wresp = ui.interact(wr, egui::Id::unique("scopes-wrench"), Sense::click());
@@ -343,36 +312,22 @@ fn plotted(st: &ScopesState, sf: &ScopeFrame) -> Arc<Signal> {
     if st.scale == Scale::Hdr && !sf.pq { Arc::new(sf.signal.map(|c| c.map(sc::sdr_to_pq))) } else { sf.signal.clone() }
 }
 
-/// A scope image the worker made: width, height, premultiplied RGBA.
-type ImageOut = (usize, usize, Vec<u8>);
-
-/// A texture computed from (frame, settings, scope), kept until either changes. `make` runs on the
-/// scope worker; until its image is there the slot's last texture stays (none at first).
-fn cached_texture(app: &FilmcraftApp, ctx: &egui::Context, slot: String, key: u64, make: impl FnOnce() -> ImageOut + Send + 'static) -> Option<TextureHandle> {
+/// A texture computed from (frame, settings, scope), kept until either changes.
+fn cached_texture(ctx: &egui::Context, slot: String, key: u64, make: impl FnOnce() -> (usize, usize, Vec<u8>)) -> Option<TextureHandle> {
     let id = egui::Id::unique(("scope-tex", slot.clone()));
-    let mut cached: Option<(u64, TextureHandle)> = ctx.data(|d| d.get_temp::<(u64, TextureHandle)>(id));
-    if let Some((k, tex)) = &cached
-        && *k == key
+    if let Some((k, tex)) = ctx.data(|d| d.get_temp::<(u64, TextureHandle)>(id))
+        && k == key
     {
-        return Some(tex.clone());
+        return Some(tex);
     }
-    let wslot = format!("texture-{slot}");
-    if let Some((k, done)) = app.scope_worker.result(&wslot)
-        && cached.as_ref().is_none_or(|c| c.0 != k)
-        && let Some((w, h, px)) = done.downcast_ref::<ImageOut>()
-        && *w > 0
-        && *h > 0
-        && px.len() == w.saturating_mul(*h).saturating_mul(4)
-    {
-        let tex = ctx.load_texture(slot, egui::ColorImage::from_rgba_premultiplied([*w, *h], px), TextureOptions::LINEAR);
-        ctx.data_mut(|d| d.insert_temp(id, (k, tex.clone())));
-        if k == key {
-            return Some(tex);
-        }
-        cached = Some((k, tex));
+    let (w, h, px) = make();
+    if w == 0 || h == 0 {
+        return None;
     }
-    app.scope_worker.submit(ctx, &wslot, key, move || Some(Arc::new(make()) as Done));
-    cached.map(|c| c.1)
+    let img = egui::ColorImage::from_rgba_premultiplied([w, h], &px);
+    let tex = ctx.load_texture(slot, img, TextureOptions::LINEAR);
+    ctx.data_mut(|d| d.insert_temp(id, (key, tex.clone())));
+    Some(tex)
 }
 
 fn settings_key(st: &ScopesState) -> u64 {
@@ -410,15 +365,14 @@ fn draw_one(app: &mut FilmcraftApp, ui: &mut egui::Ui, cell: Rect, k: ScopeKind,
             if plot.width() < 8.0 || plot.height() < 8.0 {
                 return;
             }
-            let (st2, sf2) = (st.clone(), sf.clone());
-            let tex = cached_texture(app, &ctx, slot, key, move || {
-                let sig = plotted(&st2, &sf2);
+            let tex = cached_texture(&ctx, slot, key, || {
+                let sig = plotted(st, sf);
                 if k == ScopeKind::Waveform {
-                    let w = sc::waveform(&sig, st2.waveform_type, &p);
-                    let layers: Vec<(&sc::Grid, [f32; 3])> = w.traces.iter().map(|g| (g, trace_color(g.name, Some(st2.waveform_type)))).collect();
+                    let w = sc::waveform(&sig, st.waveform_type, &p);
+                    let layers: Vec<(&sc::Grid, [f32; 3])> = w.traces.iter().map(|g| (g, trace_color(g.name, Some(st.waveform_type)))).collect();
                     sc::paint::grids(&layers, sc::paint::waveform_reference(w.per_column), gain)
                 } else {
-                    let w = sc::parade(&sig, st2.parade_type, &p);
+                    let w = sc::parade(&sig, st.parade_type, &p);
                     parade_image(&w, gain)
                 }
             });
@@ -450,8 +404,7 @@ fn draw_one(app: &mut FilmcraftApp, ui: &mut egui::Ui, cell: Rect, k: ScopeKind,
             if plot.width() < 8.0 || plot.height() < 8.0 {
                 return;
             }
-            let (st2, sf2) = (st.clone(), sf.clone());
-            let tex = cached_texture(app, &ctx, slot, key, move || histogram_image(&sc::histogram(&plotted(&st2, &sf2), &p), gain));
+            let tex = cached_texture(&ctx, slot, key, || histogram_image(&sc::histogram(&plotted(st, sf), &p), gain));
             level_graticule(ui, plot, st, sf, (0.0, 1.0));
             if let Some(tex) = tex {
                 ui.painter().image(tex.id(), plot, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
@@ -465,9 +418,8 @@ fn draw_one(app: &mut FilmcraftApp, ui: &mut egui::Ui, cell: Rect, k: ScopeKind,
             let side = (cell.width().min(cell.height()) - 16.0).max(8.0);
             let sq = Rect::from_center_size(cell.center(), vec2(side, side));
             let hls = k == ScopeKind::VectorscopeHls;
-            let signal = sf.signal.clone();
-            let tex = cached_texture(app, &ctx, slot, key, move || {
-                let v = if hls { sc::vectorscope_hls(&signal, &p) } else { sc::vectorscope_yuv(&signal, &p) };
+            let tex = cached_texture(&ctx, slot, key, || {
+                let v = if hls { sc::vectorscope_hls(&sf.signal, &p) } else { sc::vectorscope_yuv(&sf.signal, &p) };
                 sc::paint::vectorscope(&v, WHITE, gain, true)
             });
             vector_graticule(ui, sq, sf.space, st.targets, hls);

@@ -163,10 +163,6 @@ platforms** G4, G9, G17; **performance** G16; **ecosystem** G11; **measurement**
   editing controls (#577: Effect Controls has the transition's own timeline, drag to slide or resize,
   drag the cut to move it with the transition; the A/B previews with Start / End sliders remain); track renaming (#654); window controls on macOS (#637); UI scale on
   X11 (#457).
-- **Have (multi-monitor):** panels float into their own OS windows and move across displays; the
-  connected displays are enumerated (Windows) so a window saved on an unplugged monitor lands on the
-  main window's ([multi-monitor.md](multi-monitor.md), #1537, #1951, #2028, #2997). Missing: macOS and
-  Linux enumeration.
 - **Estimate:** 120–200 h. Doc: [ui-parity.md](ui-parity.md).
 
 ## G9. Windows and Linux at run time
@@ -196,9 +192,7 @@ platforms** G4, G9, G17; **performance** G16; **ecosystem** G11; **measurement**
 - **Missing:** free-format MPEG audio, E-AC-3 adaptive hybrid
   transform, enhanced coupling and the extra channels of 7.1 dependent substreams (played as the
   5.1 core), WMV / ASF, DV / DVCPRO / DV100, MPEG-4 Part 2, camera RAW (R3D
-  incl. R3D NE, ARRIRAW, Sony RAW / X-OCN, Canon RAW, ProRes RAW; #345, #383; BRAW decodes through
-  Blackmagic's runtime when it is installed (Linux, Windows and macOS), without Raw settings or
-  high bit depth), JPEG 2000 /
+  incl. R3D NE, ARRIRAW, Sony RAW / X-OCN, Canon RAW, BRAW, ProRes RAW; #345, #383), JPEG 2000 /
   JPEG XS MXF, the rest of CinemaDNG (lossy / JPEG XL DNG, MXF-wrapped, opcode lists, Raw
   settings; DNG frames and folders import since #1065); stills: PSD layers (Merged Layers, Individual Layers, layers as a sequence) and PSB / CMYK / Lab / indexed / 32-bit / ZIP-compressed documents, EXR beyond scan-line RLE / ZIP / PXR24 (PIZ, B44, DWA,
   tiled, multi-part, deep), HEIF / HEIC,
@@ -239,13 +233,6 @@ platforms** G4, G9, G17; **performance** G16; **ecosystem** G11; **measurement**
 ## G13. Delivery formats
 
 - **Missing:** AV1 export (software or hardware), MPEG-2 / DVD / Blu-ray, DCP, JPEG 2000 MXF,
-  AS-10 / AS-11, XDCAM HD MXF, P2, compressed (ZIP / PIZ / DWA) OpenEXR, interlaced encoding,
-  smart render, HEVC software encoder (HEVC exists only where a hardware encoder does); MP3
-  beyond CBR long blocks (block switching, VBR, Xing / LAME gapless tag, ID3 metadata).
-- **Have:** PNG, TIFF, BMP, JPEG, Targa and DPX (10-bit) image sequences (#779); OpenEXR
-  sequences (half float, linear, uncompressed; #806); AAC Audio (audio-only `.m4a`, or ADTS
-  `.aac`; #814); MP3 (`.mp3`, our own Layer III encoder, CBR 32-320 kbit/s, 16-48 kHz, mono /
-  joint stereo; #977); ProRes 4444 / 4444 XQ in the export UI (#342).
   AS-10 / AS-11, XDCAM HD MXF, P2, PIZ / PXR24 / B44 / DWA OpenEXR compression, MP3 audio,
   interlaced encoding, smart render, HEVC software encoder (HEVC exists only where a hardware
   encoder does).
@@ -304,10 +291,6 @@ platforms** G4, G9, G17; **performance** G16; **ecosystem** G11; **measurement**
   software decode of a single-tile stream is bound by its serial tile decode (65–80 % of a
   frame; no row-level frame threading, references are waited for as whole frames); 8K is not
   real time.
-- **Done:** With the Work Area Bar on, Sequence ▸ Render Effects in Work Area renders the red
-  render-bar sections inside the work area and Render Entire Work Area renders the red and yellow
-  ones, keeping existing previews; Delete Work Area Render Files asks for OK, then deletes the
-  preview files that hold frames in the work area.
 - **Done:** Render (Effects) In to Out renders only the frames between In and Out, as partial
   previews named by segment hash and relative frames, instead of every segment In/Out touches
   (#424); Render Audio still renders whole audio segments. AV1 software decode runs deblocking,
@@ -366,7 +349,6 @@ platforms** G4, G9, G17; **performance** G16; **ecosystem** G11; **measurement**
 | 2026-10-10 | major | Created from ROADMAP.md's "Where we are lacking" (2026-10-05); re-ranked against Premiere 26.5.2 and the 188 open issues; added `.prproj`, 10-bit / 4:2:2 camera decode, launch crashes and missing PR CI, localization, delivery formats |
 | 2026-10-12 | minor | G10: MP1 (`A_MPEG/L1`) in Matroska imports (#1402) |
 | 2026-10-12 | minor | G10: OpenEXR PXR24 import |
-| 2026-10-20 | minor | G10: BRAW decodes through Blackmagic's runtime when it is installed (#1954); camera RAW gap narrowed |
 | 2026-10-21 | minor | G10: PSD stills import the flattened composite, 8/16-bit grayscale and RGB (#2116) |
 | 2026-10-24 | minor | G8: dragging the cut on a transition's timeline in Effect Controls moves the cut, and the transition moves with it (#577) |
 | 2026-10-26 | minor | G13: optional GIF binary transparency, threshold and frame-disposal regression coverage (#3396); estimates unchanged |

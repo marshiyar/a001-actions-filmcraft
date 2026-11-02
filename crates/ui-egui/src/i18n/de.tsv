@@ -111,7 +111,6 @@
 	Darkest	Sehr dunkel
 	Delete Render Files	Renderdateien löschen
 	Delete Render Files In to Out	Renderdateien von In bis Out löschen
-	Delete Work Area Render Files	Renderdateien im Arbeitsbereich löschen
 	Delete Tracks…	Spuren löschen…
 	Delete Transcript	Transkript löschen
 	Demo Footage	Demomaterial
@@ -296,8 +295,6 @@
 	Rename…	Umbenennen…
 	Render Audio	Audio rendern
 	Render Effects In to Out	Effekte von In bis Out rendern
-	Render Effects in Work Area	Effekte im Arbeitsbereich rendern
-	Render Entire Work Area	Gesamten Arbeitsbereich rendern
 	Render In to Out	Von In bis Out rendern
 	Render Selection	Auswahl rendern
 	Replace Fonts in Projects…	Schriften in Projekten ersetzen…
@@ -1022,7 +1019,6 @@
 	Reset Effect	Effekt zurücksetzen
 	Reset Parameter	Parameter zurücksetzen
 	Save Preset…	Vorgabe speichern…
-	Effects: {names}	Effekte: {names}
 	Custom Setup	Benutzerdefinierte Einrichtung
 	Edit…	Bearbeiten…
 	Show graphs	Diagramme anzeigen
@@ -1072,7 +1068,6 @@
 	Leading	Zeilenabstand
 	Baseline Shift	Grundlinienversatz
 	Text Box Width	Textfeldbreite
-	Tate-Chu-Yoko	Tate-chu-yoko
 	Style	Stil
 	Faux Bold	Faux-Fett
 	Faux Italic	Faux-Kursiv
@@ -2416,7 +2411,6 @@
 	Show Focus Area	Fokusbereich anzeigen
 	Show Home	Startseite anzeigen
 	Show Mask Tracker Preview	Vorschau der Maskenverfolgung anzeigen
-	Show Discord Button	Discord-Schaltfläche anzeigen
 	Show Only Noise	Nur Rauschen anzeigen
 	Show Open Dialog	Öffnen-Dialog anzeigen
 	Show Project Load Error Dialog	Fehlerdialog beim Laden von Projekten anzeigen
@@ -3260,7 +3254,7 @@
 	QuickTime, ProRes 4444 XQ (4:4:4), 24-bit 48 kHz PCM	QuickTime, ProRes 4444 XQ (4:4:4), PCM 24 Bit 48 kHz
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime, ProRes 422, PCM 24 Bit 48 kHz
 	Rate Stretch Tool	Ratendehnungswerkzeug
-	Cut Tool	Rasierklingen-Werkzeug
+	Razor Tool	Rasierklingen-Werkzeug
 	Rectangle Tool	Rechteckwerkzeug
 	Remix Tool	Remix-Werkzeug
 	Right align text	Text rechtsbündig
@@ -3620,15 +3614,11 @@
 	Shows the version, community links and credits in a FilmCraft window.	Zeigt Version, Community-Links und Credits in einem FilmCraft-Fenster.
 	Couldn't open your web browser	Dein Webbrowser konnte nicht geöffnet werden
 	Open this address in your browser yourself:	Öffne diese Adresse selbst in deinem Browser:
-	Centered Audio Waveforms	Zentrierte Audio-Wellenformen
 
 # Control server: the status-bar notice when --control cannot serve.
 	The control server is disabled: FILMCRAFT_CONTROL_TOKEN must contain 64 random hex characters (see docs/control-protocol.md)	Der Kontrollserver ist deaktiviert: FILMCRAFT_CONTROL_TOKEN muss 64 zufällige Hexzeichen enthalten (siehe docs/control-protocol.md)
 
 # Control server: the bind-failure notice (port collisions; #3318 may show it too).
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Vorschaudateien löschen, die den Arbeitsbereich überlappen?
 	Temporal Interpolation	Zeitliche Interpolation
 	Select items to clear	Wähle die zu löschenden Elemente aus
 	A range marker needs a positive duration	Ein Bereichsmarker benötigt eine positive Dauer

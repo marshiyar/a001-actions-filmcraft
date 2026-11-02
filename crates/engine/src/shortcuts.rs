@@ -500,8 +500,6 @@ pub struct Shortcuts {
     undo: Vec<Snapshot>,
     redo: Vec<Snapshot>,
     external: Vec<CommandInfo>,
-    /// Commands made from data, such as one per effect preset (`presets.apply.<name>`).
-    dynamic: Vec<CommandInfo>,
     dir: Option<PathBuf>,
     /// The editor dialog's starting point (Cancel restores it).
     session_start: Option<Snapshot>,
@@ -523,7 +521,6 @@ impl Shortcuts {
             undo: Vec::new(),
             redo: Vec::new(),
             external: Vec::new(),
-            dynamic: Vec::new(),
             dir: None,
             session_start: None,
         };
@@ -537,7 +534,7 @@ impl Shortcuts {
     pub fn commands(&self) -> Vec<CommandInfo> {
         let mut v: Vec<CommandInfo> =
             crate::commands::command_specs().iter().filter(|c| bindable(c)).map(|c| CommandInfo::new(c.id, c.label, c.menu, c.shortcut)).collect();
-        for e in self.external.iter().chain(&self.dynamic) {
+        for e in &self.external {
             if !v.iter().any(|c| c.id == e.id) {
                 v.push(e.clone());
             }
@@ -545,20 +542,12 @@ impl Shortcuts {
         v
     }
 
-    /// Replace the commands made from data (one per effect preset). Bindings to a command that
-    /// disappears stay in the set, as they do for any command, and come back with it.
-    pub fn set_dynamic(&mut self, cmds: Vec<CommandInfo>) {
-        self.dynamic = cmds;
-        // the UI rebuilds its bindings and key map from the new list
-        self.revision = self.revision.wrapping_add(1);
-    }
-
     pub fn command(&self, id: &str) -> Option<CommandInfo> {
         self.commands().into_iter().find(|c| c.id == id)
     }
 
     fn known(&self, id: &str) -> bool {
-        crate::commands::find(id).is_some() || self.external.iter().chain(&self.dynamic).any(|c| c.id == id)
+        crate::commands::find(id).is_some() || self.external.iter().any(|c| c.id == id)
     }
 
     /// Commands owned by the frontend (tools, transport, panels…). Rebuilds the active set when it
@@ -1169,17 +1158,7 @@ fn list(s: &Session, p: &Value) -> Value {
 pub fn commands() -> Vec<CommandSpec> {
     macro_rules! sc {
         ($id:literal, $label:literal, $params:literal, $journal:expr, $run:expr) => {
-            CommandSpec {
-                id: $id,
-                label: $label,
-                menu: &[],
-                shortcut: None,
-                params: $params,
-                enabled: always,
-                run: $run,
-                journal: $journal,
-                named: crate::commands::NamedKeys::NONE,
-            }
+            CommandSpec { id: $id, label: $label, menu: &[], shortcut: None, params: $params, enabled: always, run: $run, journal: $journal }
         };
     }
     vec![

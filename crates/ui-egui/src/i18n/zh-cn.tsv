@@ -97,7 +97,6 @@
 	Darkest	最暗
 	Delete Render Files	删除渲染文件
 	Delete Render Files In to Out	删除入点到出点间的渲染文件
-	Delete Work Area Render Files	删除工作区域渲染文件
 	Delete Tracks…	删除轨道…
 	Delete Transcript	删除转录文稿
 	Demo Footage	演示素材
@@ -272,8 +271,6 @@
 	Rename…	重命名…
 	Render Audio	渲染音频
 	Render Effects In to Out	渲染入点到出点间的效果
-	Render Effects in Work Area	渲染工作区域中的效果
-	Render Entire Work Area	渲染整个工作区域
 	Render In to Out	渲染入点到出点
 	Render Selection	渲染所选对象
 	Replace Fonts in Projects…	替换项目中的字体…
@@ -992,7 +989,6 @@
 	Reset Effect	重置效果
 	Reset Parameter	重置参数
 	Save Preset…	保存预设…
-	Effects: {names}	效果：{names}
 	Custom Setup	自定义设置
 	Edit…	编辑…
 	Show graphs	显示图表
@@ -2385,7 +2381,6 @@
 	Show Focus Area	显示焦点区域
 	Show Home	显示主页
 	Show Mask Tracker Preview	显示遮罩跟踪器预览
-	Show Discord Button	显示 Discord 按钮
 	Show Only Noise	仅显示噪点
 	Show Open Dialog	显示打开对话框
 	Show Project Load Error Dialog	显示项目加载错误对话框
@@ -2991,9 +2986,6 @@
 	AAC Audio	AAC 音频
 	AAC Audio 48 kHz 320 kbps	AAC 音频 48 kHz 320 kbps
 	MPEG-4 audio (.m4a), stereo 48 kHz AAC-LC at 320 kbps	MPEG-4 音频 (.m4a)，立体声 48 kHz AAC-LC，320 kbps
-	MP3	MP3
-	MP3 48 kHz 320 kbps	MP3 48 kHz 320 kbps
-	MPEG audio (.mp3), joint stereo 48 kHz at 320 kbps	MPEG 音频 (.mp3)，联合立体声 48 kHz，320 kbps
 	AIFF	AIFF
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16 位
 	AIFF, stereo 48 kHz 16-bit PCM	AIFF，立体声 48 kHz 16 位 PCM
@@ -3245,7 +3237,7 @@
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime，ProRes 422，24 位 48 kHz PCM
 	Quit FilmCraft	退出 FilmCraft
 	Rate Stretch Tool	速率伸缩工具
-	Cut Tool	剃刀工具
+	Razor Tool	剃刀工具
 	Rectangle Tool	矩形工具
 	Remix Tool	重新混音工具
 	Right align text	文本右对齐
@@ -3615,7 +3607,6 @@
 	Open a sequence to search its graphics	打开序列以搜索其中的图形
 	No text graphics in this sequence. Add text with the Type tool.	此序列中没有文本图形。请用文字工具添加文本。
 	No matching text.	没有匹配的文本。
-	Tate-Chu-Yoko	纵中横
 # Markers: the Edit Marker dialog (#2416).
 	Edit Marker…	编辑标记…
 	In:	入点：
@@ -3629,7 +3620,6 @@
 	Invalid duration: {error}	持续时间无效：{error}
 	H.265 (HEVC) needs a hardware encoder (NVENC on NVIDIA GPUs, VideoToolbox on macOS); none was found on this machine, and FilmCraft has no software H.265 encoder yet. Choose H.264 or ProRes instead.	H.265 (HEVC) 需要硬件编码器（NVIDIA GPU 上的 NVENC、macOS 上的 VideoToolbox）；本机未找到，且 FilmCraft 尚无软件 H.265 编码器。请改选 H.264 或 ProRes。
 	AV1 needs a hardware encoder; none was found on this machine, and FilmCraft has no software AV1 encoder yet.	AV1 需要硬件编码器；本机未找到，且 FilmCraft 尚无软件 AV1 编码器。
-	Centered Audio Waveforms	居中音频波形
 	Enter a positive duration within the supported speed range.	请输入支持的速度范围内的正时长。
 	Show Video Names	显示视频名称
 	Show Audio Names	显示音频名称
@@ -3649,9 +3639,6 @@
 	Change the sequence to match the clip's settings?	是否更改序列以匹配剪辑的设置？
 	Change Sequence Settings	更改序列设置
 	Keep Existing Settings	保留现有设置
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	删除与工作区域重叠的预览文件？
 	Temporal Interpolation	时间插值
 	Select items to clear	选择要清除的项目
 	Opens in your web browser: {url}	在网页浏览器中打开：{url}

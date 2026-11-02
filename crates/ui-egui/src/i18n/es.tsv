@@ -102,7 +102,6 @@
 	Darkest	Más oscuro
 	Delete Render Files	Eliminar archivos de procesamiento
 	Delete Render Files In to Out	Eliminar archivos de procesamiento de entrada a salida
-	Delete Work Area Render Files	Eliminar archivos de procesamiento del área de trabajo
 	Delete Tracks…	Eliminar pistas…
 	Delete Transcript	Eliminar transcripción
 	Demo Footage	Material de demostración
@@ -277,8 +276,6 @@
 	Rename…	Cambiar nombre…
 	Render Audio	Procesar audio
 	Render Effects In to Out	Procesar efectos de entrada a salida
-	Render Effects in Work Area	Procesar efectos en el área de trabajo
-	Render Entire Work Area	Procesar toda el área de trabajo
 	Render In to Out	Procesar de entrada a salida
 	Render Selection	Procesar selección
 	Replace Fonts in Projects…	Reemplazar fuentes en proyectos…
@@ -1002,7 +999,6 @@
 	Reset Effect	Restablecer efecto
 	Reset Parameter	Restablecer parámetro
 	Save Preset…	Guardar ajuste preestablecido…
-	Effects: {names}	Efectos: {names}
 	Custom Setup	Configuración personalizada
 	Edit…	Editar…
 	Show graphs	Mostrar gráficos
@@ -2405,7 +2401,6 @@
 	Show Focus Area	Mostrar zona de enfoque
 	Show Home	Mostrar Inicio
 	Show Mask Tracker Preview	Mostrar la previsualización del seguimiento de máscara
-	Show Discord Button	Mostrar el botón de Discord
 	Show Only Noise	Mostrar solo el ruido
 	Show Open Dialog	Mostrar el diálogo Abrir
 	Show Project Load Error Dialog	Mostrar el diálogo de error al cargar proyectos
@@ -3012,9 +3007,6 @@
 	AAC Audio	AAC Audio
 	AAC Audio 48 kHz 320 kbps	AAC Audio 48 kHz 320 kbps
 	MPEG-4 audio (.m4a), stereo 48 kHz AAC-LC at 320 kbps	Audio MPEG-4 (.m4a), estéreo, AAC-LC de 48 kHz a 320 kbps
-	MP3	MP3
-	MP3 48 kHz 320 kbps	MP3 48 kHz 320 kbps
-	MPEG audio (.mp3), joint stereo 48 kHz at 320 kbps	Audio MPEG (.mp3), estéreo conjunto de 48 kHz a 320 kbps
 	AIFF	AIFF
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16 bits
 	AIFF, stereo 48 kHz 16-bit PCM	AIFF, estéreo, PCM de 48 kHz y 16 bits
@@ -3266,7 +3258,7 @@
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime, ProRes 422, PCM de 24 bits y 48 kHz
 	Quit FilmCraft	Salir de FilmCraft
 	Rate Stretch Tool	Herramienta Ajuste de velocidad
-	Cut Tool	Herramienta Cuchilla
+	Razor Tool	Herramienta Cuchilla
 	Rectangle Tool	Herramienta Rectángulo
 	Remix Tool	Herramienta Remezcla
 	Right align text	Alinear texto a la derecha
@@ -3640,7 +3632,6 @@
 	Open a sequence to search its graphics	Abre una secuencia para buscar en sus gráficos
 	No text graphics in this sequence. Add text with the Type tool.	Esta secuencia no tiene gráficos con texto. Añade texto con la herramienta Texto.
 	No matching text.	Ningún texto coincide.
-	Tate-Chu-Yoko	Tate-chu-yoko
 # Markers: the Edit Marker dialog (#2416).
 	Edit Marker…	Editar marcador…
 	In:	Entrada:
@@ -3654,7 +3645,6 @@
 	Invalid duration: {error}	Duración no válida: {error}
 	H.265 (HEVC) needs a hardware encoder (NVENC on NVIDIA GPUs, VideoToolbox on macOS); none was found on this machine, and FilmCraft has no software H.265 encoder yet. Choose H.264 or ProRes instead.	H.265 (HEVC) necesita un codificador por hardware (NVENC en GPU NVIDIA, VideoToolbox en macOS); no se encontró ninguno en este equipo y FilmCraft aún no tiene un codificador H.265 por software. Elija H.264 o ProRes.
 	AV1 needs a hardware encoder; none was found on this machine, and FilmCraft has no software AV1 encoder yet.	AV1 necesita un codificador por hardware; no se encontró ninguno en este equipo y FilmCraft aún no tiene un codificador AV1 por software.
-	Centered Audio Waveforms	Formas de onda de audio centradas
 	Enter a positive duration within the supported speed range.	Introduce una duración positiva dentro del rango de velocidad admitido.
 	Show Video Names	Mostrar nombres de vídeo
 	Show Audio Names	Mostrar nombres de audio
@@ -3674,9 +3664,6 @@
 	Change the sequence to match the clip's settings?	¿Cambiar la secuencia para que coincida con los ajustes del clip?
 	Change Sequence Settings	Cambiar ajustes de secuencia
 	Keep Existing Settings	Mantener los ajustes actuales
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	¿Eliminar los archivos de vista previa que se superponen al área de trabajo?
 	Temporal Interpolation	Interpolación temporal
 	Select items to clear	Selecciona los elementos que quieres borrar
 	Opens in your web browser: {url}	Se abre en el navegador web: {url}

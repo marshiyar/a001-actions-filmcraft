@@ -378,7 +378,6 @@ fn verify_audio_preset(name: &str, format: &str, settings: &Value, probe_result:
 fn verify_special_preset(name: &str, format: &str, format_name: &str, output: &str, probe_result: &Value, start: f64, end: f64) -> bool {
     match format {
         "aac" => verify_aac_preset(name, format_name, output, probe_result, start, end),
-        "mp3" => verify_mp3_preset(name, format_name, output, probe_result, start, end),
         "gif" => verify_gif_preset(probe_result),
         "mxf-opatom" => verify_opatom_preset(name, format_name, output, probe_result),
         _ => false,
@@ -392,19 +391,6 @@ fn verify_aac_preset(name: &str, format_name: &str, output: &str, probe_result: 
     let audio = stream(probe_result, "audio").unwrap();
     assert_eq!((audio["codec_name"].as_str(), audio["sample_rate"].as_str(), audio["channels"].as_u64()), (Some("aac"), Some("48000"), Some(2)), "{name}");
     assert!((num(&probe_result["format"]["duration"]) - (end - start)).abs() < 0.03, "{name}: {}", probe_result["format"]["duration"]);
-    true
-}
-
-fn verify_mp3_preset(name: &str, format_name: &str, output: &str, probe_result: &Value, start: f64, end: f64) -> bool {
-    // MP3: a plain Layer III stream, sound only, as long as the range plus the encoder
-    // delay (1057 samples) rounded up to whole 1152-sample frames
-    assert!(output.ends_with(".mp3"), "{name}: {output}");
-    assert_eq!(format_name, "mp3", "{name}");
-    assert_eq!(probe_result["streams"].as_array().unwrap().len(), 1, "{name}");
-    let audio = stream(probe_result, "audio").unwrap();
-    assert_eq!((audio["codec_name"].as_str(), audio["sample_rate"].as_str(), audio["channels"].as_u64()), (Some("mp3"), Some("48000"), Some(2)), "{name}");
-    let excess = num(&probe_result["format"]["duration"]) - (end - start);
-    assert!((0.0..0.06).contains(&excess), "{name}: {}", probe_result["format"]["duration"]);
     true
 }
 
@@ -800,41 +786,6 @@ fn settings_bitrate_replaces_a_presets_adaptive_bitrate() {
     // an adaptive bitrate given with it still wins
     let p = json!({"path": "x.mp4", "preset": DEFAULT_PRESET, "settings": {"bitrateKbps": 5000, "adaptiveBitrate": 0.1}});
     assert_eq!(target(&settings(&p)), 1036);
-}
-
-/// Without a preset an H.264 export starts from the default preset, as Export mode and Quick
-/// Export do: its bitrate follows the frame size instead of `ExportSettings::default()`'s fixed
-/// 20 Mbit/s, ten times the default preset's for 720x480. Other formats keep the plain defaults,
-/// and a script can still ask for the earlier settings.
-#[test]
-fn unpreset_h264_exports_start_from_the_default_preset() {
-    use filmcraft_export::ExportSettings;
-    use filmcraft_export::presets::{DEFAULT_PRESET, find_builtin};
-    use filmcraft_time::FrameRate;
-    let s = demo();
-    let settings = |p: &Value| crate::export_tools::settings_from_params(&s, p, "file.exportMedia").map(|(_, st)| st).unwrap();
-    let resolve = |st: &ExportSettings| st.resolve(720, 480, FrameRate::FPS_29_97, 44_100);
-    let preset = find_builtin(DEFAULT_PRESET).unwrap().settings;
-    for p in [json!({"path": "x.mp4"}), json!({"path": "x.mp4", "format": "h264"}), json!({"path": "x.mp4", "settings": {"format": "h264"}})] {
-        let st = settings(&p);
-        assert_eq!(st.adaptive_bitrate, preset.adaptive_bitrate, "{p}");
-        // 720 x 480 x 29.97 fps x 0.2 bits per pixel, not 20,000
-        assert_eq!(resolve(&st).target_kbps, 2072, "{p}");
-        assert_eq!(resolve(&st).sample_rate, 48_000, "{p}");
-    }
-    // other formats are unchanged: a QuickTime export keeps its own audio default
-    let prores = settings(&json!({"path": "x.mov", "format": "prores"}));
-    assert_eq!(serde_json::to_value(&prores).unwrap(), serde_json::to_value(ExportSettings { format: prores.format, ..ExportSettings::default() }).unwrap());
-    // the earlier rate, and the earlier settings exactly
-    let old = ExportSettings::default();
-    for p in [json!({"path": "x.mp4", "bitrateKbps": 20000}), json!({"path": "x.mp4", "settings": {"bitrateKbps": 20000}})] {
-        assert_eq!(resolve(&settings(&p)).target_kbps, 20_000, "{p}");
-    }
-    let p = json!({"path": "x.mp4", "bitrateKbps": 20000, "settings": {"audio": {"sampleRate": null}}});
-    assert_eq!(resolve(&settings(&p)), resolve(&old));
-    assert_eq!(settings(&p).audio_codec(), old.audio_codec());
-    let p = json!({"path": "x.mp4", "bitrateKbps": 20000, "settings": {"audio": {"codec": "auto", "sampleRate": null}}});
-    assert_eq!(serde_json::to_value(settings(&p)).unwrap(), serde_json::to_value(&old).unwrap());
 }
 
 #[test]

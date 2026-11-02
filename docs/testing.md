@@ -47,7 +47,7 @@ stays a binary of its own in `tests/`. Select one file's tests with its module p
 | Program monitor while dragging | `crates/ui-egui/tests/it/perf_ui.rs` | headless: a parameter changed on every UI pass (a value dragged in Effect Controls or Properties) and a backward scrub leave the Program monitor's picture at most one step behind (it shows the frame asked for the pass before while the frame due renders; it used to freeze until the mouse rested); a frame still rendering is kept when the same frame is asked for at a newer revision, so frames slower than a refresh (CPU effects) are shown too; `perf.stats` reports the picture's frame and revision against the playhead and the project |
 | Performance | `*/tests/{,it/}perf.rs` (`#[ignore]`) | §5 |
 
-Commit proptest's seed files so failing cases are re-run. From the crate root, a test in `tests/it/<name>.rs` reads `tests/proptest-regressions/<name>.txt` and one in `src/<name>.rs` reads `proptest-regressions/<name>.txt`. Proptest finds them from the test's source path and ignores any seed file elsewhere without a warning, so move the seed file when you move its test.
+Commit `*.proptest-regressions` files so failing cases are re-run.
 
 ### 32-bit parser regressions
 
@@ -358,15 +358,12 @@ cargo xtask bench-playback --json target/bench-playback.json # machine-readable 
 | `stack3` | three 1080p H.264 clips on V1–V3; V2/V3 scaled, positioned, rotated, 70–85 % opacity |
 | `stack3-blend` | `stack3` with V2 in Screen and V3 in Overlay (blend modes on the GPU) |
 | `h264-2160` | one 2160p23.976 H.264 clip |
-| `hevc-4320` | one 4320p23.976 HEVC clip (8K; not in the default set, its fixture takes a minute to encode) |
 | `demo` | the built-in demo project (procedural footage, transitions, effects) |
 | `after-preview` | 1080p H.264 + Lumetri/Sharpen/Levels/Tint: a live play, Render In to Out, then two plays of the green segment |
 | `seek-storm` | 40 jumps to random frames 150 ms apart (scrubbing), time until the exact frame shows |
 
 Options: `--res full,half,quarter`, `--cpu` (CPU compositor + texture conversion instead of the
-GPU path), `--hw auto|off` (OS hardware decoders in front of FilmCraft's own, as the app and
-`cargo xtask bench`; default `auto`), `--seconds`, `--refresh` (display Hz), `--workers`, `--repeat`,
-`--json <file>`.
+GPU path), `--seconds`, `--refresh` (display Hz), `--workers`, `--repeat`, `--json <file>`.
 Fixtures are made with ffmpeg in `target/fixtures/playback/` (set `FILMCRAFT_FIXTURES` to share one
 set between worktrees).
 

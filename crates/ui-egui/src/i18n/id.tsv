@@ -109,7 +109,6 @@
 	Darkest	Tergelap
 	Delete Render Files	Hapus Berkas Render
 	Delete Render Files In to Out	Hapus Berkas Render dari Masuk ke Keluar
-	Delete Work Area Render Files	Hapus Berkas Render Area Kerja
 	Delete Tracks…	Hapus Trek…
 	Delete Transcript	Hapus Transkrip
 	Demo Footage	Rekaman Demo
@@ -281,8 +280,6 @@
 	Rename…	Ganti Nama…
 	Render Audio	Render Audio
 	Render Effects In to Out	Render Efek dari Masuk ke Keluar
-	Render Effects in Work Area	Render Efek di Area Kerja
-	Render Entire Work Area	Render Seluruh Area Kerja
 	Render In to Out	Render dari Masuk ke Keluar
 	Render Selection	Render Pilihan
 	Replace Fonts in Projects…	Ganti Font di Proyek…
@@ -999,7 +996,6 @@
 	Reset Effect	Atur Ulang Efek
 	Reset Parameter	Atur Ulang Parameter
 	Save Preset…	Simpan Preset…
-	Effects: {names}	Efek: {names}
 	Custom Setup	Penyiapan Kustom
 	Edit…	Edit…
 	Show graphs	Tampilkan grafik
@@ -1049,7 +1045,6 @@
 	Leading	Spasi Baris
 	Baseline Shift	Geser Garis Dasar
 	Text Box Width	Lebar Kotak Teks
-	Tate-Chu-Yoko	Tate-Chu-Yoko
 	Style	Gaya
 	Faux Bold	Tebal Semu
 	Faux Italic	Miring Semu
@@ -2400,7 +2395,6 @@
 	Show Focus Area	Tampilkan Area Fokus
 	Show Home	Tampilkan Beranda
 	Show Mask Tracker Preview	Tampilkan Pratinjau Pelacak Masker
-	Show Discord Button	Tampilkan Tombol Discord
 	Show Only Noise	Tampilkan Hanya Derau
 	Show Open Dialog	Tampilkan Dialog Buka
 	Show Project Load Error Dialog	Tampilkan Dialog Galat Memuat Proyek
@@ -3252,7 +3246,7 @@
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime, ProRes 422, PCM 24-bit 48 kHz
 	Quit FilmCraft	Keluar dari FilmCraft
 	Rate Stretch Tool	Alat Regang Laju
-	Cut Tool	Alat Silet
+	Razor Tool	Alat Silet
 	Rectangle Tool	Alat Persegi Panjang
 	Remix Tool	Alat Remix
 	Right align text	Rata kanan teks
@@ -3596,7 +3590,6 @@
 	Open a sequence to search its graphics	Buka sekuens untuk mencari di grafisnya
 	No text graphics in this sequence. Add text with the Type tool.	Tidak ada grafis teks di sekuens ini. Tambahkan teks dengan alat Teks.
 	No matching text.	Tidak ada teks yang cocok.
-	Centered Audio Waveforms	Bentuk Gelombang Audio Terpusat
 	Enter a positive duration within the supported speed range.	Masukkan durasi positif dalam rentang kecepatan yang didukung.
 	Show Video Names	Tampilkan Nama Video
 	Show Audio Names	Tampilkan Nama Audio
@@ -3618,9 +3611,6 @@
 	Flash Cue Point	Titik Isyarat Flash
 	Invalid duration: {error}	Durasi tidak valid: {error}
 # Control server: the bind-failure notice (port collisions; #3318 may show it too).
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Hapus file pratinjau yang tumpang tindih dengan area kerja?
 	Temporal Interpolation	Interpolasi Temporal
 	Select items to clear	Pilih item yang akan dihapus
 	A range marker needs a positive duration	Penanda rentang memerlukan durasi positif

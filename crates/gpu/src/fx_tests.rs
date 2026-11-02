@@ -182,11 +182,6 @@ fn cases() -> Vec<(&'static str, Vec<(&'static str, ParamValue)>, bool)> {
         ("posterize", vec![("levels", fl(2.0))], true),
         ("posterize", vec![("levels", fl(7.0))], true),
         ("posterize", vec![("levels", fl(255.0))], true),
-        ("noise", vec![("amount", fl(30.0))], false),
-        ("noise", vec![("amount", fl(80.0)), ("color", ParamValue::Bool(false))], false),
-        ("noise", vec![("amount", fl(50.0)), ("grain_size", fl(3.5))], true),
-        ("noise", vec![("amount", fl(100.0)), ("clip", ParamValue::Bool(false))], false),
-        ("noise_legacy", vec![("amount", fl(40.0))], false),
         ("gaussian_blur", vec![("blurriness", fl(0.0))], false),
         ("gaussian_blur", vec![("blurriness", fl(5.0))], false),
         ("gaussian_blur", vec![("blurriness", fl(5.0)), ("repeat_edge", ParamValue::Bool(true))], false),
@@ -366,83 +361,27 @@ fn gpu_effects_match_cpu_exactly() {
     effects_match_cpu_exactly(&dev, &q);
 }
 
-/// A DX12 device on FXC, wgpu's shader compiler when `dxcompiler.dll` is not shipped (as in
-/// FilmCraft's builds). WARP stands in when there is no GPU.
+/// The same on DX12 with FXC, wgpu's shader compiler when `dxcompiler.dll` is not shipped (as in
+/// FilmCraft's builds). FXC aborted on the effect stage ("internal error: compilation aborted
+/// unexpectedly"), so every Windows device on DX12 rendered effects, previews and exports on the
+/// CPU. WARP stands in when there is no GPU.
 #[cfg(windows)]
-fn fxc_device() -> Option<(wgpu::Device, wgpu::Queue)> {
+#[test]
+fn gpu_effects_match_cpu_exactly_with_fxc() {
     let mut desc = wgpu::InstanceDescriptor::new_without_display_handle();
     desc.backends = wgpu::Backends::DX12;
     desc.backend_options.dx12.shader_compiler = wgpu::Dx12Compiler::Fxc;
     let instance = wgpu::Instance::new(desc);
     let adapter = [false, true].into_iter().find_map(|force_fallback_adapter| {
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions { force_fallback_adapter, ..Default::default() })).ok()
-    })?;
-    eprintln!("DX12 + FXC on {}", adapter.get_info().name);
-    Some(pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).expect("DX12 device"))
-}
-
-/// The same on FXC. It aborted on the effect stage ("internal error: compilation aborted
-/// unexpectedly"), so every Windows device on DX12 rendered effects, previews and exports on the
-/// CPU.
-#[cfg(windows)]
-#[test]
-fn gpu_effects_match_cpu_exactly_with_fxc() {
-    let Some((dev, q)) = fxc_device() else {
-        eprintln!("no DX12 adapter; skipping");
-        return;
-    };
-    effects_match_cpu_exactly(&dev, &q);
-}
-
-/// wgpu reports a shader its backend compiler rejects as an internal error, not a validation one,
-/// so the effect stage's validation scope missed it and the default handler panicked. Effects must
-/// fall back to the CPU, with the rest of the compositor still on the GPU. FXC compiles before any
-/// driver is involved, so no particular GPU is needed: it aborts on this huge workgroup array,
-/// whose size wgpu doesn't check.
-#[cfg(windows)]
-#[test]
-fn gpu_effect_stage_compiler_failure_falls_back_to_cpu() {
-    const UNCOMPILABLE: &str = "
-        var<workgroup> too_big: array<f32, 65536>;
-        @compute @workgroup_size(1) fn fx_px() { too_big[0] = 1.0; }
-        @compute @workgroup_size(1) fn fx_run() { too_big[0] = 1.0; }
-    ";
-    let Some((dev, q)) = fxc_device() else {
-        eprintln!("no DX12 adapter; skipping");
-        return;
-    };
-    // Must stay a compiler failure: a validation scope alone would capture a validation error, and
-    // this test would prove nothing.
-    let scope = dev.push_error_scope(wgpu::ErrorFilter::Internal);
-    let module = dev.create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source: wgpu::ShaderSource::Wgsl(UNCOMPILABLE.into()) });
-    let _pipeline = dev.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-        label: None,
-        layout: None,
-        module: &module,
-        entry_point: Some("fx_px"),
-        compilation_options: Default::default(),
-        cache: None,
     });
-    let error = poll_now(scope.pop()).flatten();
-    eprintln!("compiler failure: {error:?}");
-    assert!(matches!(error, Some(wgpu::Error::Internal { .. })), "expected an internal error, got {error:?}");
-
-    let mut c = GpuCompositor::with_fx_source(&dev, &q, UNCOMPILABLE);
-    assert!(c.fx.is_none(), "the effect stage built from a shader that doesn't compile");
-    let ops = vec![FxOp::eval(&effect("tint", &[("amount", fl(70.0))]), &cx(Tick::ZERO, 1.0), 64, 32).expect("tint")];
-    let plan = FramePlan::Layers {
-        width: 64,
-        height: 32,
-        layers: vec![PlanLayer {
-            fx: Some(Arc::new(LayerFx { size: (64, 32), decimation: 1, ops })),
-            ..PlanLayer::new(ramp_layer(64, 32, 2), Affine::IDENTITY, 1.0, Blend::Normal)
-        }],
+    let Some(adapter) = adapter else {
+        eprintln!("no DX12 adapter; skipping");
+        return;
     };
-    let cpu = execute_cpu(&plan).over_black_rgba8();
-    c.composite(&plan);
-    let (_, _, gpu) = c.read_output().expect("readback");
-    let (p99, mean, _) = stats8(&cpu, &gpu, &interior(&plan));
-    assert!(p99 <= 6 && mean < 1.5, "p99 {p99}, mean {mean}");
+    eprintln!("DX12 + FXC on {}", adapter.get_info().name);
+    let (dev, q) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).expect("DX12 device");
+    effects_match_cpu_exactly(&dev, &q);
 }
 
 fn effects_match_cpu_exactly(dev: &wgpu::Device, q: &wgpu::Queue) {
@@ -499,33 +438,6 @@ fn gpu_neutral_three_way_leaves_negative_and_hdr_values() {
     let (_, _, gpu) = c.effect_image(&frame, &LayerFx { size: (w, h), decimation: 1, ops: vec![op] }).expect("effect image");
     let (worst, flips) = compare(&px, &gpu);
     assert!(worst <= EXACT && flips == 0.0, "the GPU changed a neutral corrector's input: {worst:.2e}, {flips:.4} of the values");
-}
-
-/// Noise hashes the exact frame time as a 64-bit seed: the shader's 64-bit integer emulation gives
-/// the CPU's field at any time, and two frames differ.
-#[test]
-fn gpu_noise_matches_cpu_at_any_frame() {
-    let Some((dev, q)) = device() else {
-        eprintln!("no GPU adapter; skipping");
-        return;
-    };
-    let mut c = GpuCompositor::new(&dev, &q);
-    assert!(c.fx.is_some(), "no effect stage");
-    let (w, h) = (67u32, 41u32);
-    let px = picture(w, h);
-    let frame = VideoFrame::rgba_f32(w, h, px.clone());
-    let e = effect("noise", &[("amount", ParamValue::Float(60.0))]);
-    let mut fields = Vec::new();
-    for t in [Tick(1), Tick(8_467_200_000), Tick(254_016_000_000 * 3600 + 12_345), Tick(i64::MAX)] {
-        let op = FxOp::eval(&e, &cx(t, 1.0), w as usize, h as usize).expect("noise op");
-        let mut cpu = filmcraft_render::Image { w: w as usize, h: h as usize, px: px.clone() };
-        op.apply(&mut cpu);
-        let (_, _, gpu) = c.effect_image(&frame, &LayerFx { size: (w, h), decimation: 1, ops: vec![op] }).expect("effect image");
-        let (worst, flips) = compare(&cpu.px, &gpu);
-        assert!(worst <= EXACT && flips == 0.0, "noise at {t:?}: {worst:.2e}, flips {flips}");
-        fields.push(cpu.px);
-    }
-    assert_ne!(fields[0], fields[1], "the noise changes from frame to frame");
 }
 
 #[test]

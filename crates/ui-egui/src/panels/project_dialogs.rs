@@ -4,7 +4,6 @@
 //! them with `ui.set`); OK runs one engine command.
 
 use crate::widgets::CenteredDialog as _;
-use crate::widgets::DragCheckbox as _;
 use serde_json::{Value, json};
 
 use crate::FilmcraftApp;
@@ -66,7 +65,7 @@ pub fn show(app: &mut FilmcraftApp, ctx: &egui::Context) {
                     ("showNames", tl!("Show clip names"), &mut options.show_names),
                     ("showDurations", tl!("Show durations"), &mut options.show_durations),
                 ] {
-                    let r = ui.checkbox_drag(v, label);
+                    let r = ui.checkbox(v, label);
                     push(app, &format!("projectDialog.{id}"), &r, label);
                 }
                 if ok_cancel(app, ui, &mut close) {
@@ -148,7 +147,7 @@ fn metadata_display(app: &mut FilmcraftApp, ui: &mut egui::Ui, columns: &mut Vec
                 for c in all.iter().filter(|c| f.is_empty() || c.to_ascii_lowercase().contains(&f)) {
                     let mut on = columns.contains(c);
                     let name_col = c == "Name";
-                    let r = ui.checkbox_drag_enabled(!name_col, &mut on, crate::i18n::t(c));
+                    let r = ui.add_enabled(!name_col, egui::Checkbox::new(&mut on, crate::i18n::t(c)));
                     push(app, &format!("projectDialog.field.{c}"), &r, c);
                     if r.changed() {
                         if on {

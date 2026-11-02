@@ -18,7 +18,7 @@ fn with_ui_commands(s: &mut Session) {
         CommandInfo::new("playback.forward", "Shuttle Right", &[], Some("L")),
         CommandInfo::new("playback.slowForward", "Shuttle Slow Right", &[], None),
         CommandInfo::new("playback.playAround", "Play Around", &[], None),
-        CommandInfo::new("tool.razor", "Cut Tool", &[], Some("C")),
+        CommandInfo::new("tool.razor", "Razor Tool", &[], Some("C")),
         CommandInfo::new("app.keyboardShortcuts", "Keyboard Shortcuts…", &["Edit"], Some("Cmd+Alt+K")),
     ]);
 }
@@ -199,12 +199,8 @@ fn delete_clears_timeline_clips_and_project_items() {
     let del = Chord::parse("Delete").unwrap();
     for p in [Platform::Mac, Platform::Windows] {
         assert_eq!(s.shortcuts.resolve(&del, Some("Timeline"), p).unwrap().command, "edit.clear", "{p:?}");
-        let project_binding = s.shortcuts.resolve(&del, Some("Project"), p).unwrap();
-        assert_eq!(project_binding.command, "project.delete", "{p:?}");
-        assert_eq!(project_binding.panel.as_deref(), Some("Project"), "{p:?}");
+        assert_eq!(s.shortcuts.resolve(&del, Some("Project"), p).unwrap().command, "project.delete", "{p:?}");
         assert_eq!(s.shortcuts.resolve(&del, None, p).unwrap().command, "project.delete", "{p:?}");
-        let backspace = Chord::parse("Backspace").unwrap();
-        assert_eq!(s.shortcuts.resolve(&backspace, Some("Project"), p).unwrap().command, "project.delete", "{p:?}");
     }
 }
 

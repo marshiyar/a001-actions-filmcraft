@@ -36,7 +36,6 @@ impl FilmcraftApp {
             ui: UiState { language, ..UiState::default() },
             tokens: Tokens::for_kind(ThemeKind::Dark),
             frames,
-            scope_worker: scope_worker::ScopeWorker::new(),
             playback: Playback { speed: 1.0, ..Default::default() },
             source_playback: Default::default(),
             audio: None,
@@ -57,7 +56,6 @@ impl FilmcraftApp {
             ime_composer_target: None,
             ime_drawn_editor: None,
             ime_document_epoch,
-            mode_document_epoch: ime_document_epoch,
             ime_active_sequence,
             ime_viewports: Vec::new(),
             textures: HashMap::new(),
@@ -83,7 +81,6 @@ impl FilmcraftApp {
             test_now: None,
             mac_ctrl_click_armed: false,
             native_ctrl_click_armed: Arc::default(),
-            monitors: Default::default(),
             value_press: None,
             escape_cancel: false,
             loudness: None,
@@ -128,7 +125,6 @@ impl FilmcraftApp {
             applied_prefs: None,
             applied_ui_scale: None,
             workspace_restored: false,
-            engine_call: false,
             workspaces,
             menu_workspaces: Default::default(),
         }
@@ -317,11 +313,6 @@ impl FilmcraftApp {
     /// logic subsystems, advance playback, poll jobs, then drain completed screenshots and ask
     /// for hidden paints. Safe on hidden logic-only callbacks.
     pub fn logic_inner(&mut self, ctx: &egui::Context) {
-        // a hidden zoom-bar drag cursor is always released exactly when it should be, so a lag
-        // spike, a focus loss or anything else can never leave it stuck on the mouse. The
-        // watchdog also covers the track sliders' Shift drags (same lock), and those stay live
-        // while the zoom bar is hidden, so it runs unconditionally (it is a no-op without a lock)
-        crate::panels::timeline::zoombar_cursor_watchdog(&mut self.tl, ctx);
         // Remember the pass's clock before anything reads `now()`. A hidden logic-only tick keeps
         // the last UI time (which is stale there), so `now()` never runs behind the host clock.
         self.ui_clock = self.ui_clock.max(ctx.input(|i| i.time));
@@ -386,7 +377,6 @@ impl FilmcraftApp {
             self.apply_prefs(&ctx);
             self.sync_timeline_view();
             panels::metadata::follow_selection(self);
-            panels::effect_controls::follow_selection(self);
             self.handle_drops(&ctx);
             self.begin_press(&ctx);
             self.latch_escape_cancel(&ctx);
@@ -511,7 +501,6 @@ impl eframe::App for FilmcraftApp {
     /// Cancel outstanding screenshots with one error reply each, end per-viewport IME reset
     /// state, and shut the session down so its recovery journal is flushed or removed.
     fn on_exit(&mut self) {
-        self.remember_layout();
         // Late screenshot callbacks now find a dropped slot and write nothing; clients get one error.
         capture::cancel_all(self);
         for viewport in self.ime_viewports.drain(..) {

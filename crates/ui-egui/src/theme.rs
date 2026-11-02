@@ -681,12 +681,7 @@ mod tests {
                 // craft-fonts) and the Hangul face (none is in craft-fonts)
                 let stack: Vec<&String> = stack
                     .iter()
-                    .filter(|n| {
-                        !crate::rtl::is_system_face(n)
-                            && n.as_str() != crate::cjk::KOREAN_FACE
-                            && n.as_str() != crate::cjk::THAI_FACE
-                            && n.as_str() != crate::cjk::DEVA_FACE
-                    })
+                    .filter(|n| !crate::rtl::is_system_face(n) && n.as_str() != crate::cjk::KOREAN_FACE && n.as_str() != crate::cjk::THAI_FACE)
                     .collect();
                 let first = stack.iter().position(|n| n.starts_with("craft:")).unwrap_or(stack.len());
                 assert!(first > 0 && stack[first..].iter().all(|n| n.starts_with("craft:")), "{family:?}: {stack:?}");
@@ -714,8 +709,7 @@ mod tests {
         let n = filmcraft_text::fonts::craft_japanese().count()
             + crate::cjk::craft_fonts().count()
             + crate::rtl::craft_fonts().count()
-            + crate::cjk::thai_craft_fonts().count()
-            + crate::cjk::deva_craft_fonts().count();
+            + crate::cjk::thai_craft_fonts().count();
         ctx.fonts_mut(|fonts| {
             let defs = fonts.definitions().clone();
             assert_eq!(defs.font_data.keys().filter(|k| k.starts_with("craft:")).count(), n);

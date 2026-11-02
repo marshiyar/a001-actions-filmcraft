@@ -99,7 +99,6 @@
 	Darkest	Mörkast
 	Delete Render Files	Radera renderingsfiler
 	Delete Render Files In to Out	Radera renderingsfiler från in till ut
-	Delete Work Area Render Files	Radera renderingsfiler i arbetsområdet
 	Delete Tracks…	Radera spår…
 	Delete Transcript	Radera transkription
 	Demo Footage	Demomaterial
@@ -271,8 +270,6 @@
 	Rename…	Byt namn…
 	Render Audio	Rendera ljud
 	Render Effects In to Out	Rendera effekter från in till ut
-	Render Effects in Work Area	Rendera effekter i arbetsområdet
-	Render Entire Work Area	Rendera hela arbetsområdet
 	Render In to Out	Rendera från in till ut
 	Render Selection	Rendera markering
 	Replace Fonts in Projects…	Ersätt typsnitt i projekt…
@@ -987,7 +984,6 @@
 	Reset Effect	Återställ effekt
 	Reset Parameter	Återställ parameter
 	Save Preset…	Spara förinställning…
-	Effects: {names}	Effekter: {names}
 	Custom Setup	Anpassad inställning
 	Edit…	Redigera…
 	Show graphs	Visa grafer
@@ -3634,9 +3630,6 @@
 	Check for Updates…	Sök efter uppdateringar…
 	Set Work Area Bar In Point	Ange arbetsområdesfältets in-punkt
 	Set Work Area Bar Out Point	Ange arbetsområdesfältets ut-punkt
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Radera förhandsgranskningsfiler som överlappar arbetsområdet?
 	FilmCraft Updates	FilmCraft-uppdateringar
 	Center at Cut	Centrera vid snitt
 	Start at Cut	Börja vid snitt

@@ -45,7 +45,7 @@ fn spec(
     enabled: Enabled,
     run: Run,
 ) -> CommandSpec {
-    CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: true, named: crate::commands::NamedKeys::NONE }
+    CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: true }
 }
 
 fn query(
@@ -57,7 +57,7 @@ fn query(
     enabled: Enabled,
     run: Run,
 ) -> CommandSpec {
-    CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: false, named: crate::commands::NamedKeys::NONE }
+    CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: false }
 }
 
 const FIND_PARAMS: &str = r#"{"scope":"project|timeline"?,"column":str?,"operator":"contains|matches|beginsWith|endsWith|doesNotContain"?,"text":str?,"rows":[{"column":str,"operator":str,"text":str}]?,"matchAll":bool=true,"caseSensitive":bool=false,"in":"all|clips|markers"?}"#;
@@ -278,17 +278,14 @@ pub(crate) fn apply_layout(v: &mut Vec<CommandSpec>) {
 }
 
 /// The Sequence menu in Premiere's order (submenu items where their submenu goes).
-const SEQUENCE_MENU: [&str; 37] = [
+const SEQUENCE_MENU: [&str; 34] = [
     "sequence.settings",
     "sequence.renderEffectsInToOut",
-    "sequence.renderEffectsInWorkArea",
     "sequence.renderInToOut",
-    "sequence.renderEntireWorkArea",
     "sequence.renderSelection",
     "sequence.renderAudio",
     "sequence.deleteRenderFiles",
     "sequence.deleteRenderFilesInToOut",
-    "sequence.deleteWorkAreaRenderFiles",
     "sequence.matchFrame",
     "sequence.reverseMatchFrame",
     "sequence.addEdit",

@@ -82,7 +82,7 @@ SUBCOMMANDS
          [--scale f] [--quality 0-100] [--no-audio] [--queue] [--allow-offline]
                                 export the active sequence and wait for it to finish: with an
                                 export preset (`export --list-presets`; built-in or the user's), or
-                                a format (h264|hevc|prores|dnxhr|apv|mjpeg|mxf-op1a|mxf-opatom|png|tiff|bmp|gif|wav|aiff|aac|mp3, guessed
+                                a format (h264|hevc|prores|dnxhr|apv|mjpeg|mxf-op1a|mxf-opatom|png|tiff|bmp|gif|wav|aiff|aac, guessed
                                 from the extension); --range entire|inOut|workArea, or a custom
                                 range in seconds; --settings is ExportSettings JSON merged over the
                                 preset; --scale renders at a fraction of the frame size (0.5 =
@@ -250,7 +250,6 @@ fn format_for(path: &str) -> Option<&'static str> {
         "bmp" => "bmp",
         "aif" | "aiff" => "aiff",
         "m4a" | "aac" => "aac",
-        "mp3" => "mp3",
         _ => return None,
     })
 }
@@ -344,11 +343,7 @@ async fn cli_probe(a: &Args) {
 async fn cli_bench_decode(a: &Args) {
     let path = a.pos(1).unwrap_or_else(|| usage("bench-decode <media>"));
     let n: i64 = a.opt("--frames").and_then(|v| v.parse().ok()).unwrap_or(120);
-    let src = match filmcraft_codecs::open_by_path(path) {
-        Some(r) => r,
-        None => filmcraft_codecs::open_bytes(path, read_file(path).await.unwrap_or_else(|e| fail(e)).into()),
-    }
-    .unwrap_or_else(|e| fail(e));
+    let src = filmcraft_codecs::open_bytes(path, read_file(path).await.unwrap_or_else(|e| fail(e)).into()).unwrap_or_else(|e| fail(e));
     let rate = src.info().frame_rate();
     let t0 = std::time::Instant::now();
     for f in 0..n {

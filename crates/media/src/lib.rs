@@ -12,7 +12,6 @@
 pub mod animated;
 pub mod cache;
 pub mod cancel;
-pub mod capabilities;
 pub mod digits;
 pub mod dpx;
 pub mod generators;
@@ -33,7 +32,7 @@ use serde::{Deserialize, Serialize};
 
 pub use cache::FrameCache;
 pub use generators::{DemoScene, Generator};
-pub use reader::{ByteReader, PathOpener, ReaderOpener, SharedReader};
+pub use reader::{ByteReader, ReaderOpener, SharedReader};
 
 #[derive(Debug, thiserror::Error)]
 pub enum MediaError {
@@ -230,21 +229,7 @@ pub const STILL_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "ti
 pub const AUDIO_EXTENSIONS: &[&str] = &["wav", "wave", "bwf", "aif", "aiff", "mp3", "mp2", "m4a", "aac", "flac", "ogg", "opus"];
 pub const VIDEO_EXTENSIONS: &[&str] = &[
     "mp4", "m4v", "mov", "mkv", "webm", "avi", "mxf", "mts", "m2ts", "m2t", "ts", "mpg", "mpeg", "vob", "mod", "tod", "m2v", "m1v", "mpv", "3gp", "y4m", "apv",
-    // Blackmagic RAW: opened by a platform path opener when Blackmagic's runtime is installed
-    "braw",
 ];
-
-/// Formats only a platform path opener can decode (no public specification, so no pure-Rust
-/// decoder): extension and format name. A build or system without that opener (the web app,
-/// FreeBSD) must refuse such a file before reading it, rather than read a multi-hundred-gigabyte
-/// camera file whole looking for a byte opener that does not exist.
-pub const PATH_ONLY_FORMATS: &[(&str, &str)] = &[("braw", "Blackmagic RAW")];
-
-/// The format name of `path` when only a platform path opener can decode it ([`PATH_ONLY_FORMATS`]).
-pub fn path_only_format(path: &str) -> Option<&'static str> {
-    let ext = path.rsplit(['/', '\\']).next()?.rsplit_once('.')?.1;
-    PATH_ONLY_FORMATS.iter().find(|(e, _)| e.eq_ignore_ascii_case(ext)).map(|(_, name)| *name)
-}
 
 pub fn is_importable(path: &Path) -> bool {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
@@ -272,7 +257,7 @@ pub fn open_bytes(name: &str, bytes: Arc<[u8]>, extra: &[Opener]) -> Result<Shar
         return Ok(Arc::new(wav::WavSource::parse(name, bytes)?));
     }
     // APNG, animated GIF, and animated WebP play as movies (#402); single-frame files fall through to the stills
-    if let Some(r) = animated::from_bytes(name, bytes.clone()) {
+    if let Some(r) = animated::open(name, &bytes) {
         return Ok(Arc::new(r?));
     }
     if still::sniff(name, &bytes) {
@@ -335,16 +320,5 @@ mod importable_tests {
         assert!(validate_audio_buffer_shape(MAX_AUDIO_CHANNELS as usize, MAX_AUDIO_BUFFER_BYTES / 4 / MAX_AUDIO_CHANNELS as usize).is_ok());
         assert!(validate_audio_buffer_shape(MAX_AUDIO_CHANNELS as usize, MAX_AUDIO_BUFFER_BYTES / 4 / MAX_AUDIO_CHANNELS as usize + 1).is_err());
         assert!(resample_source_frames(usize::MAX, MAX_AUDIO_SAMPLE_RATE, 1).is_err());
-    }
-
-    #[test]
-    fn path_only_formats_are_named_by_extension_in_any_case() {
-        for path in ["a.braw", "/cards/A001/clip.BRAW", "C:\\cards\\clip.Braw", "x.y.braw"] {
-            assert_eq!(path_only_format(path), Some("Blackmagic RAW"), "{path}");
-        }
-        for path in ["", ".", "braw", "/cards/clips.braw/a.mov", "a.braw.mov", "a.mov", "a.", "🦀.br"] {
-            assert_eq!(path_only_format(path), None, "{path}");
-        }
-        assert!(is_importable(Path::new("clip.braw")), "offered at import, opened by the platform");
     }
 }

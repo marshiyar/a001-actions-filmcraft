@@ -33,8 +33,6 @@ wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 web-time = "1"
 web-sys = { version = "0.3", features = [
-    "AbortController",
-    "AbortSignal",
     "AudioContext",
     "AudioContextOptions",
     "AudioContextState",
@@ -74,10 +72,6 @@ web-sys = { version = "0.3", features = [
     "OffscreenCanvas",
     "OffscreenCanvasRenderingContext2d",
     "Performance",
-    "ReadableStream",
-    "ReadableStreamDefaultReader",
-    "RequestCache",
-    "RequestInit",
     "Response",
     "StorageManager",
     "Url",
@@ -85,7 +79,3 @@ web-sys = { version = "0.3", features = [
     "Window",
     "WritableStream",
 ] }
-
-# The pure page-config parsing is tested natively (`tests/it`).
-[dev-dependencies]
-serde_json = { workspace = true }

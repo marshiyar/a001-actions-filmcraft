@@ -104,7 +104,6 @@
 	Darkest	Le plus sombre
 	Delete Render Files	Supprimer les fichiers de rendu
 	Delete Render Files In to Out	Supprimer les fichiers de rendu de l'entrée à la sortie
-	Delete Work Area Render Files	Supprimer les fichiers de rendu de la zone de travail
 	Delete Tracks…	Supprimer des pistes…
 	Delete Transcript	Supprimer la transcription
 	Demo Footage	Rushes de démonstration
@@ -276,8 +275,6 @@
 	Rename…	Renommer…
 	Render Audio	Effectuer le rendu audio
 	Render Effects In to Out	Rendu des effets de l'entrée à la sortie
-	Render Effects in Work Area	Rendu des effets dans la zone de travail
-	Render Entire Work Area	Rendu de toute la zone de travail
 	Render In to Out	Rendu de l'entrée à la sortie
 	Render Selection	Effectuer le rendu de la sélection
 	Replace Fonts in Projects…	Remplacer les polices dans les projets…
@@ -994,7 +991,6 @@
 	Reset Effect	Réinitialiser l'effet
 	Reset Parameter	Réinitialiser le paramètre
 	Save Preset…	Enregistrer le préréglage…
-	Effects: {names}	Effets : {names}
 	Custom Setup	Configuration personnalisée
 	Edit…	Modifier…
 	Show graphs	Afficher les graphiques
@@ -1044,7 +1040,6 @@
 	Leading	Interlignage
 	Baseline Shift	Décalage de la ligne de base
 	Text Box Width	Largeur de la zone de texte
-	Tate-Chu-Yoko	Tate-chu-yoko
 	Style	Style
 	Faux Bold	Faux gras
 	Faux Italic	Faux italique
@@ -2395,7 +2390,6 @@
 	Show Focus Area	Afficher la zone de mise au point
 	Show Home	Afficher l'accueil
 	Show Mask Tracker Preview	Afficher l'aperçu du suivi de masque
-	Show Discord Button	Afficher le bouton Discord
 	Show Only Noise	Afficher uniquement le bruit
 	Show Open Dialog	Afficher la boîte de dialogue Ouvrir
 	Show Project Load Error Dialog	Afficher la boîte de dialogue d'erreur de chargement du projet
@@ -3002,9 +2996,6 @@
 	AAC Audio	AAC Audio
 	AAC Audio 48 kHz 320 kbps	AAC Audio 48 kHz 320 kbps
 	MPEG-4 audio (.m4a), stereo 48 kHz AAC-LC at 320 kbps	Audio MPEG-4 (.m4a), AAC-LC stéréo 48 kHz à 320 kbps
-	MP3	MP3
-	MP3 48 kHz 320 kbps	MP3 48 kHz 320 kbps
-	MPEG audio (.mp3), joint stereo 48 kHz at 320 kbps	Audio MPEG (.mp3), stéréo conjointe 48 kHz à 320 kbps
 	AIFF	AIFF
 	AIFF 48 kHz 16-bit	AIFF 48 kHz 16 bits
 	AIFF, stereo 48 kHz 16-bit PCM	AIFF, PCM stéréo 48 kHz 16 bits
@@ -3238,7 +3229,7 @@
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime, ProRes 422, PCM 24 bits 48 kHz
 	Quit FilmCraft	Quitter FilmCraft
 	Rate Stretch Tool	Outil Étirement de la vitesse
-	Cut Tool	Outil Cutter
+	Razor Tool	Outil Cutter
 	Rectangle Tool	Outil Rectangle
 	Remix Tool	Outil Remixage
 	Right align text	Aligner le texte à droite
@@ -3711,7 +3702,6 @@
 	H.265 (HEVC) needs a hardware encoder (NVENC on NVIDIA GPUs, VideoToolbox on macOS); none was found on this machine, and FilmCraft has no software H.265 encoder yet. Choose H.264 or ProRes instead.	H.265 (HEVC) nécessite un encodeur matériel (NVENC sur les GPU NVIDIA, VideoToolbox sur macOS) ; aucun n'a été trouvé sur cet ordinateur, et FilmCraft n'a pas encore d'encodeur H.265 logiciel. Choisissez plutôt H.264 ou ProRes.
 	AV1 needs a hardware encoder; none was found on this machine, and FilmCraft has no software AV1 encoder yet.	AV1 nécessite un encodeur matériel ; aucun n'a été trouvé sur cet ordinateur, et FilmCraft n'a pas encore d'encodeur AV1 logiciel.
 	Hardware decoding: Auto uses the system's video decoder (VideoToolbox on macOS, Media Foundation on Windows, VA-API for H.264 and HEVC on Linux) for the streams it supports, and FilmCraft's own decoder for everything else or if the hardware fails. Media that is already open keeps its decoder until it is reopened.	Décodage matériel : Auto utilise le décodeur vidéo du système (VideoToolbox sur macOS, Media Foundation sur Windows, VA-API pour H.264 et HEVC sous Linux) pour les flux qu'il prend en charge, et le décodeur de FilmCraft pour tout le reste ou en cas d'échec du matériel. Un média déjà ouvert garde son décodeur jusqu'à sa réouverture.
-	Centered Audio Waveforms	Formes d'onde audio centrées
 	Check for Updates…	Rechercher les mises à jour…
 	Checking for updates…	Recherche de mises à jour…
 	Could not check for updates:\n{error}	Impossible de rechercher les mises à jour :\n{error}
@@ -3735,6 +3725,3 @@
 	Options:	Options :
 	Invalid duration: {error}	Durée non valide : {error}
 # Control server: the bind-failure notice (port collisions; #3318 may show it too).
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Supprimer les fichiers de prévisualisation qui chevauchent la zone de travail ?

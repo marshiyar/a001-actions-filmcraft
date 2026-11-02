@@ -102,7 +102,6 @@
 	Darkest	Più scuro
 	Delete Render Files	Elimina file di rendering
 	Delete Render Files In to Out	Elimina file di rendering da attacco a stacco
-	Delete Work Area Render Files	Elimina file di rendering dell’area di lavoro
 	Delete Tracks…	Elimina tracce…
 	Delete Transcript	Elimina trascrizione
 	Demo Footage	Filmati demo
@@ -271,8 +270,6 @@
 	Rename…	Rinomina…
 	Render Audio	Esegui rendering audio
 	Render Effects In to Out	Esegui rendering effetti da attacco a stacco
-	Render Effects in Work Area	Esegui rendering effetti nell’area di lavoro
-	Render Entire Work Area	Esegui rendering dell’intera area di lavoro
 	Render In to Out	Esegui rendering da attacco a stacco
 	Render Selection	Esegui rendering selezione
 	Replace Fonts in Projects…	Sostituisci font nei progetti…
@@ -991,7 +988,6 @@
 	Reset Effect	Reimposta effetto
 	Reset Parameter	Reimposta parametro
 	Save Preset…	Salva predefinito…
-	Effects: {names}	Effetti: {names}
 	Custom Setup	Configurazione personalizzata
 	Edit…	Modifica…
 	Show graphs	Mostra grafici
@@ -1041,7 +1037,6 @@
 	Leading	Interlinea
 	Baseline Shift	Spostamento linea di base
 	Text Box Width	Larghezza casella di testo
-	Tate-Chu-Yoko	Tate-chu-yoko
 	Style	Stile
 	Faux Bold	Grassetto simulato
 	Faux Italic	Corsivo simulato
@@ -2392,7 +2387,6 @@
 	Show Focus Area	Mostra area di messa a fuoco
 	Show Home	Mostra Home
 	Show Mask Tracker Preview	Mostra anteprima del tracciamento maschera
-	Show Discord Button	Mostra il pulsante Discord
 	Show Only Noise	Mostra solo il rumore
 	Show Open Dialog	Mostra finestra Apri
 	Show Project Load Error Dialog	Mostra la finestra di errore di caricamento del progetto
@@ -3246,7 +3240,7 @@
 	QuickTime, ProRes 422, 24-bit 48 kHz PCM	QuickTime, ProRes 422, PCM 24 bit 48 kHz
 	Quit FilmCraft	Esci da FilmCraft
 	Rate Stretch Tool	Strumento Allungamento velocità
-	Cut Tool	Strumento Lama
+	Razor Tool	Strumento Lama
 	Rectangle Tool	Strumento Rettangolo
 	Remix Tool	Strumento Remix
 	Right align text	Allinea il testo a destra
@@ -3621,7 +3615,6 @@
 	Open a sequence to search its graphics	Apri una sequenza per cercare nelle sue grafiche
 	No text graphics in this sequence. Add text with the Type tool.	Nessuna grafica con testo in questa sequenza. Aggiungi testo con lo strumento Testo.
 	No matching text.	Nessun testo corrispondente.
-	Centered Audio Waveforms	Forme d'onda audio centrate
 	Enter a positive duration within the supported speed range.	Inserisci una durata positiva nell’intervallo di velocità supportato.
 	Show Video Names	Mostra nomi video
 	Show Audio Names	Mostra nomi audio
@@ -3643,9 +3636,6 @@
 	Flash Cue Point	Punto Flash Cue
 	Invalid duration: {error}	Durata non valida: {error}
 # Control server: the bind-failure notice (port collisions; #3318 may show it too).
-
-# Sequence: the Delete Work Area Render Files confirmation.
-	Delete preview files that overlap the work area?	Eliminare i file di anteprima sovrapposti all’area di lavoro?
 	Temporal Interpolation	Interpolazione temporale
 	Select items to clear	Seleziona gli elementi da cancellare
 	Opens in your web browser: {url}	Si apre nel browser web: {url}

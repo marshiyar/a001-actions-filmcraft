@@ -53,11 +53,11 @@ fn spec(
     enabled: Enabled,
     run: Run,
 ) -> CommandSpec {
-    CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: true, named: crate::commands::NamedKeys::NONE }
+    CommandSpec { id, label, menu, shortcut, params, enabled, run, journal: true }
 }
 
 fn query(id: &'static str, label: &'static str, params: &'static str, run: Run) -> CommandSpec {
-    CommandSpec { id, label, menu: &[], shortcut: None, params, enabled: always, run, journal: false, named: crate::commands::NamedKeys::NONE }
+    CommandSpec { id, label, menu: &[], shortcut: None, params, enabled: always, run, journal: false }
 }
 
 /// Insert this module's commands into the registry after their anchors, so the menus list them in
@@ -316,7 +316,20 @@ pub fn select_under_playhead(s: &mut Session) {
 
 /// Timeline time at which `it` shows media time `src` (None when it doesn't).
 pub fn timeline_time_of(it: &TrackItem, src: Tick) -> Option<Tick> {
-    it.timeline_time_of_media(src)
+    if let Some(h) = it.frame_hold {
+        return (h == src).then_some(it.start);
+    }
+    let speed = it.speed.abs();
+    if speed <= 0.0 {
+        return None;
+    }
+    let total = it.source_out() - it.source_in;
+    let rel_src = if it.reverse { it.source_in + total - Tick(1) - src } else { src - it.source_in };
+    if rel_src < Tick::ZERO || rel_src >= total {
+        return None;
+    }
+    let t = it.start + Tick((rel_src.0 as f64 / speed).floor() as i64);
+    (t < it.end()).then_some(t)
 }
 
 /// Sequence ▸ Reverse Match Frame: find the Source monitor frame in the active sequence (targeted

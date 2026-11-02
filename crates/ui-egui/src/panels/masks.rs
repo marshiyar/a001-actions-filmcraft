@@ -10,7 +10,6 @@
 //! `program.mask.out.<i>`, `program.mask.body`, `program.mask.feather`, `program.mask.expansion`,
 //! `program.mask.roundness`, `program.mask.marquee`, `program.maskPen`.
 
-use crate::widgets::DragCheckbox as _;
 use egui::{Align2, Color32, Pos2, Rect, Sense, Stroke, pos2, vec2};
 use filmcraft_geom::{Affine, Vec2};
 use filmcraft_project::{ClipId, EffectInstance, MaskMode, MaskPath, MaskVertex, TrackItem};
@@ -153,8 +152,7 @@ pub(crate) fn effect_rows(
             continue;
         }
         for pd in defs {
-            // mask params always key on media time, so the clip-relative `pt` argument is unused here
-            crate::panels::effect_controls::param_row(app, ui, body, clip, idx, e, Some(k), pd, mt, actions, lane, lx, it, keys, mt);
+            crate::panels::effect_controls::param_row(app, ui, body, clip, idx, e, Some(k), pd, mt, actions, lane, lx, it, keys);
             if pd.id != "path"
                 && app.ui.expanded_fx.contains(&crate::panels::effect_controls::graph_key(clip, idx, &format!("mask{k}.{}", pd.id)))
                 && let Some(param) = m.param(pd.id)
@@ -171,7 +169,7 @@ pub(crate) fn effect_rows(
         let mut cui = ui.new_child(egui::UiBuilder::new().max_rect(cr).layout(egui::Layout::left_to_right(egui::Align::Center)));
         crate::panels::effect_controls::fit_to_row(&mut cui);
         let mut inv = m.inverted;
-        if crate::widgets::accessible_name(cui.checkbox_drag(&mut inv, ""), "Invert").changed() {
+        if crate::widgets::accessible_name(cui.checkbox(&mut inv, ""), "Invert").changed() {
             actions.push(("masks.set".into(), json!({"clip": clip.0, "effect": idx, "mask": k, "inverted": inv})));
         }
         app.auto.add(&format!("{base}.inverted"), cr, "Inverted");

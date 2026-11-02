@@ -60,14 +60,12 @@ pub mod icons;
 mod ime_reset;
 pub mod links;
 pub mod menus;
-pub mod monitors;
 pub mod native_dialogs;
 pub mod panels;
 pub mod perf;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod play_ahead;
 mod rtl;
-pub mod scope_worker;
 pub mod scrub;
 mod shuttle;
 pub mod source_playback;
@@ -202,8 +200,6 @@ pub struct FilmcraftApp {
     pub ui: UiState,
     pub tokens: Tokens,
     pub frames: Arc<FrameServer>,
-    /// Lumetri Scopes signals and images, computed off the UI pass.
-    pub scope_worker: scope_worker::ScopeWorker,
     pub playback: Playback,
     pub source_playback: source_playback::SourcePlayback,
     pub audio: Option<Box<dyn AudioOut>>,
@@ -237,9 +233,6 @@ pub struct FilmcraftApp {
     pub(crate) ime_drawn_editor: Option<panels::graphics::DrawnImeEditor>,
     /// Project document generation last seen by the UI (the engine bumps it on replacement).
     ime_document_epoch: u64,
-    /// The same generation for the header mode: a project installed while Import is showing
-    /// switches to Edit (#2421).
-    mode_document_epoch: u64,
     /// Active sequence last seen by the UI; `sequence.close` need not emit `OpenSequence`.
     ime_active_sequence: Option<filmcraft_project::ItemId>,
     /// Viewports the Program monitor's editor published in, released when the app exits.
@@ -258,10 +251,6 @@ pub struct FilmcraftApp {
     pub(crate) pending_panel_raise: Option<PanelKind>,
     /// Explicit automation mode: native widget input and native menu commands are excluded.
     pub(crate) control_input_only: bool,
-    /// Set while a control-channel `engine.execute` runs: a command whose menu form opens a
-    /// dialog to ask for parameters runs the engine command instead (an agent cannot see or
-    /// close a dialog; `ui.menu.invoke` keeps the menu behaviour, #1540).
-    pub(crate) engine_call: bool,
     /// Backend focus before synthetic input changes egui's effective focus for this frame.
     pub(crate) native_window_focused: Option<bool>,
     /// Modifiers owned by an in-flight control gesture, carried between its input frames.
@@ -309,8 +298,6 @@ pub struct FilmcraftApp {
     /// [`Self::mac_ctrl_click_armed`] for each dock panel's own OS window, shared with the dock
     /// area's input hook.
     pub(crate) native_ctrl_click_armed: Arc<Mutex<HashMap<egui::ViewportId, bool>>>,
-    /// The connected displays, for keeping floating panel windows reachable (`monitors.rs`).
-    pub(crate) monitors: monitors::Monitors,
     /// The mouse press in progress (its start time) and the undo history when it began, for Escape
     /// to take back what the press changed (#580).
     value_press: Option<(f64, filmcraft_engine::UndoMark)>,

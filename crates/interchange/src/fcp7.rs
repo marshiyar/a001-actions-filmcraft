@@ -420,40 +420,14 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
         let rate = read_rate(c).unwrap_or(seq_rate);
         let item = self.clip_media(c, kind, seq_rate, frame, &name)?;
 
-        // A clip edge under a transition is written as -1: the neighbouring `transitionitem`
-        // defines it (Premiere and Resolve both write it so, #1687). The clip's visible edge is
-        // the transition's cut, and `in` / `out` are the source at the transition's start, so the
-        // source moves up by the handle before the cut.
-        let (start, end, in_shift) = {
-            let mut start = child_i64(c, "start").unwrap_or(-1);
-            let mut end = child_i64(c, "end").unwrap_or(-1);
-            let mut shift = 0;
-            if start < 0
-                && let Some((cut, t_start)) = c.prev_sibling_element().filter(|t| t.has_tag_name("transitionitem")).and_then(Self::transition_cut)
-            {
-                start = cut;
-                shift = cut - t_start;
-            }
-            if end < 0
-                && let Some((cut, _)) = c.next_sibling_element().filter(|t| t.has_tag_name("transitionitem")).and_then(Self::transition_cut)
-            {
-                end = cut;
-            }
-            (start, end, shift)
-        };
+        let start = child_i64(c, "start").unwrap_or(-1);
+        let end = child_i64(c, "end").unwrap_or(-1);
         let in_f = child_i64(c, "in").unwrap_or(0);
         let out_f = child_i64(c, "out").unwrap_or(in_f);
         let src_in = child_i64(c, "pproTicksIn").map(Tick).unwrap_or_else(|| rate.tick_of(in_f));
         let src_out = child_i64(c, "pproTicksOut").map(Tick).unwrap_or_else(|| rate.tick_of(out_f));
         let remap = self.time_remap(c);
         let (mut speed, reverse, hold) = (remap.speed, remap.reverse, remap.hold);
-        // the handle before a transition-defined start: sequence frames, at the clip's speed
-        let (src_in, src_out) = if in_shift > 0 && !hold {
-            let d = Tick((seq_rate.tick_of(in_shift).0 as f64 * speed).round() as i64);
-            (src_in + d, src_out + d)
-        } else {
-            (src_in, src_out)
-        };
         let src_len = (src_out - src_in).abs();
         let (start_t, dur) = match (start >= 0, end >= 0) {
             (true, true) => (seq_rate.tick_of(start), seq_rate.tick_of(end) - seq_rate.tick_of(start)),
@@ -684,22 +658,6 @@ impl<'a, 'i> Imp<'a, 'i, '_> {
                 ti.effects.push(inst);
             }
         }
-    }
-
-    /// Where a `transitionitem` cuts (its start for `start` / `start-black` alignment, its end for
-    /// `end` / `end-black`, else its middle: `center`, the default), with the transition's start.
-    fn transition_cut(t: Node) -> Option<(i64, i64)> {
-        let s = child_i64(t, "start")?;
-        let e = child_i64(t, "end").unwrap_or(s);
-        if s < 0 || e < s {
-            return None;
-        }
-        let cut = match child_text(t, "alignment").unwrap_or("").to_ascii_lowercase().as_str() {
-            "start" | "start-black" => s,
-            "end" | "end-black" => e,
-            _ => s + (e - s) / 2,
-        };
-        Some((cut, s))
     }
 
     fn transition(&mut self, seq: &mut Sequence, kind: TrackKind, ti: usize, c: Node, rate: FrameRate) {
@@ -1288,22 +1246,12 @@ impl Exp<'_, '_> {
                 self.float_param(c, FloatParam { effect: "opacity", pid: "opacity", label: "opacity", min: 0.0, max: 100.0, xml_id: "opacity" }, rate, |v| v);
                 self.close_effect();
             }
-            // the curve's rate at the clip's In point stands for the whole clip in this flat export
-            let remapped = param(c, "time_remap", "speed").is_some_and(|p| p.is_animated());
-            if c.speed != 1.0 || c.reverse || c.frame_hold.is_some() || remapped {
-                if remapped {
-                    self.report.warn("speed ramps (time remapping keyframes) are not exported to FCP7 XML; the speed at the clip's In point was exported");
+            if c.speed != 1.0 || c.reverse || c.frame_hold.is_some() {
+                if param(c, "time_remap", "speed").is_some_and(|p| p.is_animated()) {
+                    self.report.warn("speed ramps (time remapping keyframes) are not exported to FCP7 XML");
                 }
                 self.open_effect("Time Remap", "timeremap", "motion", "motion", "video", true);
-                // a curve replaces the Speed/Duration factor while it is animated, so the flat
-                // export carries the curve's rate at the clip's In point; otherwise the factor
-                let sp = if c.frame_hold.is_some() {
-                    0.0
-                } else if remapped {
-                    c.remap_speed_at(Tick::ZERO) * 100.0
-                } else {
-                    c.speed * 100.0
-                };
+                let sp = if c.frame_hold.is_some() { 0.0 } else { c.speed * 100.0 };
                 self.simple_param("variablespeed", "variablespeed", "0");
                 self.simple_param("speed", "speed", &num(sp));
                 self.simple_param("reverse", "reverse", bool_str(c.reverse));

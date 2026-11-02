@@ -7,7 +7,6 @@
 //! failing that the frame asked for a refresh earlier, so the picture follows a scrub or a value
 //! that is dragged instead of waiting for the mouse to rest.
 
-use crate::widgets::DragCheckbox as _;
 use egui::{Align2, Color32, Rect, Sense, Stroke, StrokeKind, pos2, vec2};
 use filmcraft_project::ItemKind;
 use filmcraft_time::{Tick, TimeDisplay, format_time};
@@ -330,8 +329,6 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
     // ---- picture, at its display aspect (non-square pixels are stretched on screen)
     let ppp = ctx.pixels_per_point();
     let display_w = (frame_size.0 as f64 * monitor_view::pixel_aspect(app, which)) as f32;
-    // a picture magnified past the area gets scroll bars along the bottom and right (#2685)
-    let (video_area, scroll_h, scroll_v) = monitor_view::scroll_layout(video_area, display_w, frame_size.1 as f32, &mv, ppp, show_picture && !compare);
     let pic = if compare {
         fit(video_area, display_w, frame_size.1 as f32)
     } else if show_picture {
@@ -377,7 +374,6 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect, which: Which)
         monitor_view::guides(app, ui, which, video_area, pic, frame_size);
     }
     ui.set_clip_rect(saved_clip);
-    monitor_view::scrollbars(app, ui, which, video_area, pic, scroll_h, scroll_v);
     if let Some((top, left)) = ruler_rects {
         monitor_view::rulers(app, ui, which, top, left, video_area, pic, frame_size);
     }
@@ -493,11 +489,11 @@ fn controls_row(
         ui.set_min_width(240.0);
         monitor_view::wrench_items(app, ui, which);
         let mv = monitor_view::view_mut(app, which);
-        ui.checkbox_drag(&mut mv.safe_margins, tl!("Safe Margins"));
-        ui.checkbox_drag(&mut mv.show_transport, tl!("Show Transport Controls"));
+        ui.checkbox(&mut mv.safe_margins, tl!("Safe Margins"));
+        ui.checkbox(&mut mv.show_transport, tl!("Show Transport Controls"));
         if which == Which::Source {
             let mut looping = app.source_playback.clock.looping;
-            let response = ui.checkbox_drag(&mut looping, tl!("Loop marked range"));
+            let response = ui.checkbox(&mut looping, tl!("Loop marked range"));
             app.auto.add("source.settings.loop", response.rect, "Loop marked range");
             if response.changed()
                 && let Err(e) = crate::menus::invoke(app, &ctx, "playback.loop", json!({"monitor":"source"}))
@@ -507,14 +503,14 @@ fn controls_row(
         }
         if which == Which::Program {
             ui.separator();
-            ui.checkbox_drag(&mut app.ui.show_scopes, tl!("Lumetri Scopes"));
-            ui.checkbox_drag(&mut app.playback.looping, tl!("Loop"));
+            ui.checkbox(&mut app.ui.show_scopes, tl!("Lumetri Scopes"));
+            ui.checkbox(&mut app.playback.looping, tl!("Loop"));
             ui.separator();
             let mut follows = app.session.state.multicam_audio_follows_video;
-            if ui.checkbox_drag(&mut follows, tl!("Multi-Camera Audio Follows Video")).changed() {
+            if ui.checkbox(&mut follows, tl!("Multi-Camera Audio Follows Video")).changed() {
                 let _ = app.session.execute("multicam.audioFollowsVideo", json!({"enabled": follows}));
             }
-            ui.checkbox_drag(&mut app.ui.multicam_record, tl!("Multi-Camera Record"));
+            ui.checkbox(&mut app.ui.multicam_record, tl!("Multi-Camera Record"));
             let v = app.session.state.multicam_view.clone();
             for (cmd, label, on) in [
                 ("multicam.selectionTopDown", tl!("Multi-Camera Selection Top Down"), v.top_down),
@@ -523,7 +519,7 @@ fn controls_row(
                 ("multicam.transmitView", tl!("Transmit Multi-Camera View"), v.transmit),
             ] {
                 let mut b = on;
-                if ui.checkbox_drag(&mut b, label).changed() {
+                if ui.checkbox(&mut b, label).changed() {
                     let _ = app.session.execute(cmd, json!({"enabled": b}));
                 }
             }
@@ -1108,7 +1104,7 @@ fn transport(app: &mut FilmcraftApp, ui: &mut egui::Ui, row: Rect, which: Which)
             let scroll = egui::ScrollArea::vertical().id_salt((prefix, "editor-scroll")).max_height(editor_height).show(ui, |ui| {
                 for &(_, cmd, tip) in &all_buttons {
                     let mut visible = transport_visible(&edited_hidden, cmd);
-                    let checkbox = ui.checkbox_drag(&mut visible, tip);
+                    let checkbox = ui.checkbox(&mut visible, tip);
                     app.auto.add(&format!("{prefix}.transport.editor.{cmd}"), checkbox.rect, tip);
                     if checkbox.changed() {
                         set_transport_visible(&mut edited_hidden, cmd, visible);

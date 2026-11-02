@@ -114,11 +114,6 @@ pub trait Services: Send + Sync {
     fn write_file_new(&self, _path: &str, _data: &[u8]) -> std::io::Result<()> {
         Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "exclusive file creation is unavailable on this host"))
     }
-    /// Whether an occupied regular file has exactly these bytes. Symlinks must return false.
-    /// Hosts that cannot verify return false.
-    fn existing_file_matches(&self, _path: &str, _data: &[u8]) -> std::io::Result<bool> {
-        Ok(false)
-    }
     /// Size of a file in bytes (an error when it is missing). Hosts should override this: the
     /// default reads the whole file.
     fn file_size(&self, path: &str) -> std::io::Result<u64> {
@@ -138,11 +133,6 @@ pub trait Services: Send + Sync {
     /// File names in a directory (image sequence detection). `None`: the host cannot list
     /// directories; sequences are then found by probing consecutive frame numbers.
     fn list_dir(&self, _dir: &str) -> Option<std::io::Result<Vec<String>>> {
-        None
-    }
-    /// Direct child names within both limits; return an error rather than a partial listing.
-    /// Hosts without bounded directory listing leave the importer to probe candidate paths.
-    fn list_dir_bounded(&self, _dir: &str, _max_entries: usize, _max_bytes: usize) -> Option<std::io::Result<Vec<String>>> {
         None
     }
     /// A loader the media pool keeps for reading files later (image sequence frames on demand).
@@ -173,33 +163,6 @@ pub trait Services: Send + Sync {
 
 /// Native filesystem services.
 pub struct FsServices;
-
-fn same_file_snapshot(first: &std::fs::Metadata, second: &std::fs::Metadata) -> bool {
-    if !first.file_type().is_file() || !second.file_type().is_file() || first.len() != second.len() {
-        return false;
-    }
-    let (Ok(first_modified), Ok(second_modified)) = (first.modified(), second.modified()) else {
-        return false;
-    };
-    if first_modified != second_modified {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        first.dev() == second.dev() && first.ino() == second.ino() && first.ctime() == second.ctime() && first.ctime_nsec() == second.ctime_nsec()
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        first.creation_time() == second.creation_time() && first.last_write_time() == second.last_write_time()
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        false
-    }
-}
-
 impl Services for FsServices {
     fn read_file(&self, path: &str) -> std::io::Result<Vec<u8>> {
         std::fs::read(path)
@@ -225,40 +188,6 @@ impl Services for FsServices {
         }
         filmcraft_format::atomic_write_new(path, data)
     }
-    fn existing_file_matches(&self, path: &str, data: &[u8]) -> std::io::Result<bool> {
-        use std::io::Read;
-
-        let before = std::fs::symlink_metadata(path)?;
-        let Ok(expected_len) = u64::try_from(data.len()) else { return Ok(false) };
-        if !before.file_type().is_file() || before.len() != expected_len {
-            return Ok(false);
-        }
-        #[cfg(windows)]
-        let mut file = {
-            use std::os::windows::fs::OpenOptionsExt;
-            const FILE_SHARE_READ: u32 = 0x0000_0001;
-            std::fs::OpenOptions::new().read(true).share_mode(FILE_SHARE_READ).open(path)?
-        };
-        #[cfg(not(windows))]
-        let mut file = std::fs::File::open(path)?;
-        if !same_file_snapshot(&before, &file.metadata()?) {
-            return Ok(false);
-        }
-        let mut buffer = [0_u8; 8192];
-        for chunk in data.chunks(buffer.len()) {
-            file.read_exact(&mut buffer[..chunk.len()])?;
-            if buffer[..chunk.len()] != *chunk {
-                return Ok(false);
-            }
-        }
-        let mut extra = [0_u8];
-        if file.read(&mut extra)? != 0 {
-            return Ok(false);
-        }
-        let opened_after = file.metadata()?;
-        let pathname_after = std::fs::symlink_metadata(path)?;
-        Ok(same_file_snapshot(&before, &opened_after) && same_file_snapshot(&opened_after, &pathname_after))
-    }
     fn file_size(&self, path: &str) -> std::io::Result<u64> {
         let m = std::fs::metadata(path)?;
         if m.is_file() { Ok(m.len()) } else { Err(std::io::Error::new(std::io::ErrorKind::NotFound, format!("{path} is not a file"))) }
@@ -266,22 +195,6 @@ impl Services for FsServices {
     fn list_dir(&self, dir: &str) -> Option<std::io::Result<Vec<String>>> {
         let dir = if dir.is_empty() { "." } else { dir };
         Some(std::fs::read_dir(dir).map(|rd| rd.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect()))
-    }
-    fn list_dir_bounded(&self, dir: &str, max_entries: usize, max_bytes: usize) -> Option<std::io::Result<Vec<String>>> {
-        let dir = if dir.is_empty() { "." } else { dir };
-        Some((|| {
-            let mut names = Vec::new();
-            let mut bytes = 0_usize;
-            for entry in std::fs::read_dir(dir)? {
-                let name = entry?.file_name().into_string().map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidData, "non-UTF-8 directory entry"))?;
-                bytes = bytes.checked_add(name.len()).ok_or_else(|| std::io::Error::other("directory listing byte limit exceeded"))?;
-                if names.len() >= max_entries || bytes > max_bytes {
-                    return Err(std::io::Error::other("directory listing limit exceeded"));
-                }
-                names.push(name);
-            }
-            Ok(names)
-        })())
     }
     fn file_loader(&self) -> Option<filmcraft_media::sequence::FrameLoader> {
         Some(std::sync::Arc::new(|p: &str| std::fs::read(p)))
@@ -397,9 +310,6 @@ impl EffectSel {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EditorState {
     pub active_sequence: Option<ItemId>,
-    /// Per-project Timeline interaction settings, persisted in `ProjectView` and recovery state.
-    #[serde(default)]
-    pub timeline_ui: filmcraft_project::TimelineUiSettings,
     /// Playhead per sequence.
     pub playheads: std::collections::BTreeMap<ItemId, Tick>,
     /// Item loaded in the Source monitor and its playhead (media time).
@@ -689,12 +599,7 @@ impl Session {
             tts_preview: None,
             tts_cache: Default::default(),
             trim_play: Default::default(),
-            shortcuts: {
-                // one command per built-in effect preset (#1356); the user's join in `set_data_dir`
-                let mut sc = shortcuts::Shortcuts::new();
-                sc.set_dynamic(presets::shortcut_commands(&presets::PresetLibrary::default()));
-                sc
-            },
+            shortcuts: shortcuts::Shortcuts::new(),
             offline: Default::default(),
             media_jobs: Vec::new(),
             mask_jobs: Vec::new(),
@@ -753,7 +658,6 @@ impl Session {
         self.media.set_use_proxies(self.prefs.media.enable_proxies);
         self.shortcuts.set_dir(&cfg.data_dir);
         self.presets.set_dir(&cfg.data_dir);
-        self.shortcuts.set_dynamic(presets::shortcut_commands(&self.presets));
         self.export_presets.set_dir(&cfg.data_dir);
         self.prefs_path = Some(prefs_path);
         self.apply_media_cache();
@@ -778,23 +682,14 @@ impl Session {
     /// Tell the worker about the current project state if it changed (cheap: an `Arc` clone and a
     /// channel send; serialization happens on the worker). Called after every command.
     pub fn sync_persistence(&mut self) {
-        // the worker check and the revision check come first: the project view is a walk over
-        // every sequence and it must not repeat on every command while nothing changed (or when
-        // there is no worker to send it to at all)
-        if self.persistence.is_none() {
-            return;
-        }
         let dirty = self.is_dirty();
+        let Some(p) = self.persistence.as_mut() else { return };
         let cur = autosave::Sent { revision: self.revision, saved_revision: self.saved_revision, path: self.path.clone() };
-        if self.persistence.as_ref().is_some_and(|p| p.last_sent.as_ref() == Some(&cur)) {
+        if p.last_sent.as_ref() == Some(&cur) {
             return;
         }
-        let view = dirty.then(|| self.project_view());
-        let Some(p) = self.persistence.as_mut() else { return };
         if dirty {
-            if let Some(view) = view {
-                p.send_dirty(self.project.clone(), view, self.revision, self.path.clone());
-            }
+            p.send_dirty(self.project.clone(), self.revision, self.path.clone());
         } else {
             p.send_clean();
         }
@@ -873,22 +768,8 @@ impl Session {
         self.revision != self.saved_revision
     }
 
-    /// Mark a project-file view setting as changed and journal its current project view.
-    pub fn project_view_changed(&mut self) {
-        self.bump();
-        self.sync_persistence();
-    }
-
     /// Run a command by id.
     pub fn execute(&mut self, id: &str, params: Value) -> Result<Value> {
-        // `presets.apply.<name>` (a preset's shortcut command, #1356) is `presets.apply` with it
-        if commands::find(id).is_none()
-            && let Some(name) = presets::preset_for_command(&self.presets, id)
-        {
-            let mut p = params.as_object().cloned().unwrap_or_default();
-            p.insert("preset".into(), Value::String(name));
-            return self.execute("presets.apply", Value::Object(p));
-        }
         let spec = commands::find(id).ok_or_else(|| EngineError::UnknownCommand(id.to_string()))?;
         // headless sessions (CLI, MCP, control channel) have no UI frame loop calling
         // `poll_persistence`: apply background mask tracking before each command (#3302)
@@ -930,12 +811,6 @@ impl Session {
         }
         if self.exec_depth == 0 {
             source_monitor::track_history(self);
-        }
-        // a saved, deleted, renamed or imported preset changes the preset commands (#1356); also
-        // after an error, which can come after the library changed in memory (a file that could not
-        // be written): the commands always follow the library
-        if matches!(id, "presets.save" | "presets.delete" | "presets.rename" | "presets.import") {
-            self.shortcuts.set_dynamic(presets::shortcut_commands(&self.presets));
         }
         // source graphics: an edited instance updates the shared layers and the other instances
         if r.is_ok() && journal && id.starts_with("graphics.") && !self.project.source_graphics.is_empty() {
@@ -1024,7 +899,6 @@ impl Session {
             active_sequence: self.state.active_sequence.filter(is_seq),
             sequences: self.state.timeline_views.iter().filter(|(id, _)| is_seq(id)).map(|(id, v)| (*id, *v)).collect(),
             playheads: self.state.playheads.iter().filter(|(id, _)| is_seq(id)).map(|(id, t)| (*id, *t)).collect(),
-            timeline_ui: self.state.timeline_ui.clone(),
         }
     }
 
@@ -1034,7 +908,6 @@ impl Session {
     /// view without any open sequence leaves the project on its first sequence: a project saved
     /// by a session that never showed one (a script, the CLI) should not open on an empty Timeline.
     pub fn restore_project_view(&mut self, view: filmcraft_project::ProjectView) {
-        self.state.timeline_ui = view.timeline_ui.checked();
         let mut open: Vec<ItemId> = Vec::new();
         for id in view.open_sequences {
             if self.project.sequence(id).is_some() && !open.contains(&id) {
@@ -1521,8 +1394,6 @@ mod mixer_tests;
 #[cfg(test)]
 mod multicam_tests;
 #[cfg(test)]
-mod named_targets_tests;
-#[cfg(test)]
 mod narration_tests;
 #[cfg(test)]
 mod nest_editing_tests;
@@ -1577,8 +1448,6 @@ mod stored_paths_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
-mod time_remap_tests;
-#[cfg(test)]
 mod timeline_move_tests;
 #[cfg(test)]
 mod track_params_tests;
@@ -1600,6 +1469,3 @@ mod source_placement_tests;
 mod frame_export_tests;
 #[cfg(test)]
 mod wasm_clock_tests;
-
-#[cfg(test)]
-mod ripple_rate_stretch_tests;
